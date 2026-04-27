@@ -473,6 +473,30 @@ select option { background: var(--bg-elevated); color: var(--text-primary); }
   box-shadow: var(--shadow-lg);
   cursor: default;
 }
+.lightbox__stage {
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+}
+.lightbox__fallback {
+  background: var(--bg-glass-strong);
+  backdrop-filter: var(--blur-glass);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  padding: 10px 16px;
+  display: flex; align-items: center; gap: 12px;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  cursor: default;
+}
+.lightbox__fallback button {
+  background: var(--grad-tg);
+  color: white;
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.lightbox__fallback button:hover { box-shadow: var(--shadow-glow-tg); }
 .lightbox__close {
   position: absolute; top: 20px; right: 24px;
   width: 40px; height: 40px;

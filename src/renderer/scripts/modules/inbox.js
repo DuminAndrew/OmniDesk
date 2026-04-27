@@ -331,9 +331,11 @@ function renderAttachment(a, chat, msg) {
           } catch (e) { toast(e.message, 'error'); }
           return;
         }
-        // VK videos: embed vk.com player inside our own lightbox iframe
+        // VK videos: embed vk.com player inside our own lightbox iframe;
+        // pass vkUrl as fallback for private videos (where the iframe
+        // shows "Видеофайл не найден" because it has no VK cookies).
         if (chat.source === 'vk' && a.vkEmbedUrl) {
-          openVideoLightbox({ src: a.vkEmbedUrl, type: 'iframe' });
+          openVideoLightbox({ src: a.vkEmbedUrl, type: 'iframe', fallbackUrl: a.vkUrl });
           return;
         }
         toast('Воспроизведение недоступно', 'error');
@@ -409,15 +411,27 @@ function openLightbox(url) {
   openLightboxRaw(`<img src="${escapeHtml(url)}" alt=""/>`);
 }
 
-function openVideoLightbox({ src, type }) {
+function openVideoLightbox({ src, type, fallbackUrl }) {
+  let stage = '';
   if (type === 'iframe') {
-    openLightboxRaw(
-      `<iframe src="${escapeHtml(src)}" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>`
-    );
+    stage = `
+      <div class="lightbox__stage">
+        <iframe src="${escapeHtml(src)}" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>
+        ${fallbackUrl ? `
+          <div class="lightbox__fallback">
+            <span>Если видео не воспроизводится здесь, в VK оно может быть приватным.</span>
+            <button data-fallback>Открыть в браузере</button>
+          </div>` : ''}
+      </div>`;
   } else {
-    openLightboxRaw(
-      `<video src="${escapeHtml(src)}" controls autoplay></video>`
-    );
+    stage = `<video src="${escapeHtml(src)}" controls autoplay></video>`;
+  }
+  openLightboxRaw(stage);
+  if (fallbackUrl) {
+    document.querySelector('.lightbox [data-fallback]')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      api.openExternal(fallbackUrl);
+    });
   }
 }
 
