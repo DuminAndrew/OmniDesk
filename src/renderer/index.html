@@ -61,9 +61,26 @@
   <!-- ───── Modal: Proxy ───── -->
   <template id="tpl-proxy-modal">
     <div class="modal">
-      <div class="modal__card">
+      <div class="modal__card modal__card--wide">
         <h2>Прокси для Telegram</h2>
-        <p class="muted">Используйте, если Telegram заблокирован у вашего провайдера.<br/>Поддерживаются <b>MTProxy</b> и <b>SOCKS5</b>.</p>
+
+        <details class="guide">
+          <summary>📖 Когда нужен прокси и где его взять</summary>
+          <ol class="guide__list">
+            <li><b>Когда нужен:</b> если ваш провайдер заблокировал Telegram (актуально для РФ). Если TG работает без прокси — пропустите этот шаг.</li>
+            <li><b>Где взять MTProxy бесплатно:</b>
+              <ul>
+                <li>В Telegram-канале <a href="#" data-link="https://t.me/mtproto_proxies">@mtproto_proxies</a></li>
+                <li>На сайте <a href="#" data-link="https://mtpro.xyz/ru/">mtpro.xyz/ru</a></li>
+              </ul>
+              Найдите ссылку вида <code>tg://proxy?server=…&amp;port=…&amp;secret=…</code> и оттуда скопируйте host, port, secret.
+            </li>
+            <li><b>SOCKS5</b> подойдёт любой — платные сервисы или собственный сервер.</li>
+            <li>После сохранения прокси переподключите Telegram (Настройки → Telegram → Подключить заново).</li>
+          </ol>
+        </details>
+
+        <p class="muted small">Поддерживаются <b>MTProxy</b> и <b>SOCKS5</b>.</p>
 
         <label class="field">
           <span>Тип</span>
@@ -100,19 +117,41 @@
   <!-- ───── Modal: Telegram login ───── -->
   <template id="tpl-tg-modal">
     <div class="modal">
-      <div class="modal__card">
+      <div class="modal__card modal__card--wide">
         <h2>Подключение Telegram</h2>
-        <p class="muted">
-          Получите <b>API ID</b> и <b>API Hash</b> на
-          <a href="#" data-link="https://my.telegram.org/apps">my.telegram.org/apps</a>
-        </p>
+
+        <details class="guide" open>
+          <summary>📖 Пошаговая инструкция (как получить API ID и Hash)</summary>
+          <ol class="guide__list">
+            <li>Откройте <a href="#" data-link="https://my.telegram.org/auth">my.telegram.org</a> и войдите по своему номеру (придёт код в Telegram).</li>
+            <li>На главной странице нажмите <b>«API development tools»</b>.</li>
+            <li>Заполните форму создания приложения <b>именно так</b>:
+              <table class="guide__table">
+                <tr><td><b>App title</b></td><td><code>OmniDesk</code></td></tr>
+                <tr><td><b>Short name</b></td><td><code>omnidesk</code></td></tr>
+                <tr><td><b>URL</b></td><td><code>https://omnidesk.local</code> <span class="muted small">(любая ссылка, не важно)</span></td></tr>
+                <tr><td><b>Platform</b></td><td>выберите <b>Desktop</b></td></tr>
+                <tr><td><b>Description</b></td><td>можно оставить пустым</td></tr>
+              </table>
+            </li>
+            <li>Нажмите <b>«Create application»</b>.</li>
+            <li>На открывшейся странице вы увидите два значения:
+              <ul>
+                <li><b>App api_id</b> — число (например, <code>12345678</code>) → скопируйте в поле <b>API ID</b> ниже</li>
+                <li><b>App api_hash</b> — длинная строка букв и цифр → скопируйте в поле <b>API Hash</b></li>
+              </ul>
+            </li>
+            <li>В поле <b>Номер телефона</b> укажите тот же номер, под которым вы вошли на my.telegram.org.</li>
+            <li>Нажмите <b>«Получить код»</b> — он придёт в Telegram-чат «Telegram» (не SMS).</li>
+          </ol>
+        </details>
 
         <div data-stage="creds">
           <div class="field-row">
-            <label class="field"><span>API ID</span><input data-field="apiId" inputmode="numeric" /></label>
-            <label class="field"><span>API Hash</span><input data-field="apiHash" /></label>
+            <label class="field"><span>API ID (число)</span><input data-field="apiId" inputmode="numeric" placeholder="12345678" /></label>
+            <label class="field"><span>API Hash (32 символа)</span><input data-field="apiHash" placeholder="abcdef1234567890abcdef1234567890" /></label>
           </div>
-          <label class="field"><span>Номер телефона</span><input data-field="phone" placeholder="+79001234567" /></label>
+          <label class="field"><span>Номер телефона (с +)</span><input data-field="phone" placeholder="+79001234567" /></label>
           <div class="modal__actions">
             <button class="btn btn--ghost" data-action="cancel">Отмена</button>
             <button class="btn btn--primary" data-action="send-code">Получить код</button>
@@ -147,16 +186,30 @@
   <!-- ───── Modal: VK login ───── -->
   <template id="tpl-vk-modal">
     <div class="modal">
-      <div class="modal__card">
+      <div class="modal__card modal__card--wide">
         <h2>Подключение ВКонтакте</h2>
-        <p class="muted">
-          Получите <b>access_token</b> с правами <code>messages,offline</code> через
-          <a href="#" data-link="https://vkhost.github.io/">vkhost.github.io</a>
-          (Kate Mobile или VK Admin).
-        </p>
+
+        <details class="guide" open>
+          <summary>📖 Пошаговая инструкция (как получить access_token)</summary>
+          <ol class="guide__list">
+            <li>Откройте <a href="#" data-link="https://vkhost.github.io/">vkhost.github.io</a>.</li>
+            <li>Кликните на кнопку <b>«Kate Mobile»</b> (рекомендуется — даёт доступ к сообщениям).</li>
+            <li>Если появится окно VK — войдите в свой аккаунт ВКонтакте.</li>
+            <li>На странице с запросом разрешений нажмите <b>«Разрешить»</b> / <b>«Allow»</b>.</li>
+            <li>VK перенаправит вас на пустую (белую) страницу. <b>Посмотрите на адресную строку браузера</b> — там будет длинный URL вида:
+              <pre class="guide__code">https://oauth.vk.com/blank.html#<b>access_token=vk1.a.XXXXXXXX...</b>&amp;expires_in=0&amp;user_id=12345</pre>
+            </li>
+            <li>Скопируйте <b>только саму строку токена</b> — то, что между <code>access_token=</code> и <code>&amp;expires_in</code>. Она начинается с <code>vk1.a.</code>.
+              <br/><span class="muted small">Можно вставить и весь URL — OmniDesk сам выдернет токен.</span>
+            </li>
+            <li>Вставьте в поле ниже и нажмите <b>«Подключить»</b>.</li>
+          </ol>
+          <p class="muted small">⚠️ Никому не показывайте токен — он даёт полный доступ к вашим сообщениям. OmniDesk хранит его зашифрованным локально на вашем ПК.</p>
+        </details>
+
         <label class="field">
-          <span>Access Token</span>
-          <input data-field="token" placeholder="vk1.a..." />
+          <span>Access Token (или весь URL после авторизации)</span>
+          <input data-field="token" placeholder="vk1.a.XXXX… или https://oauth.vk.com/blank.html#access_token=…" />
         </label>
         <div class="modal__actions">
           <button class="btn btn--ghost" data-action="cancel">Отмена</button>

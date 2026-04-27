@@ -16,6 +16,7 @@ logs/
 .idea/
 .DS_Store
 Thumbs.db
+.claude/
 
 # Build artifacts
 build/icon-cache/

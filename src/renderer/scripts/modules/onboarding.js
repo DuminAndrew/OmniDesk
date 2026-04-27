@@ -157,10 +157,13 @@ function openVkModal(onClose) {
   };
 
   node.querySelector('[data-action="save"]').addEventListener('click', async () => {
-    const token = node.querySelector('[data-field="token"]').value.trim();
-    if (!token) return toast('Вставьте access_token', 'error');
+    let raw = node.querySelector('[data-field="token"]').value.trim();
+    if (!raw) return toast('Вставьте access_token', 'error');
+    // Auto-extract token if user pasted full URL
+    const m = raw.match(/access_token=([^&\s]+)/);
+    if (m) raw = m[1];
     setStatus('Подключаемся к VK…');
-    const res = await api.vk.loginWithToken({ token });
+    const res = await api.vk.loginWithToken({ token: raw });
     if (!res.ok) return setStatus('Ошибка: ' + res.error, 'error');
     setStatus('VK подключён ✓', 'success');
     setTimeout(close, 1000);
