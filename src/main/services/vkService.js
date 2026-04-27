@@ -52,6 +52,7 @@ class VkService extends EventEmitter {
       await this.vk.updates.start();
       this.connected = true;
       this.emit('status', { connected: true });
+      this._seedDialogs().catch(() => {});
       return true;
     } catch (err) {
       logger.error('VK connect failed', err.message);
@@ -70,6 +71,21 @@ class VkService extends EventEmitter {
       random_id
     });
     return { ok: true };
+  }
+
+  async _seedDialogs() {
+    const dialogs = await this.listDialogs(80);
+    for (const d of dialogs) {
+      this.emit('seed', {
+        source: 'vk',
+        externalChatId: d.externalId,
+        title: d.title,
+        body: d.lastMessage || '',
+        ts: d.lastTs || Date.now(),
+        unread: d.unread || 0
+      });
+    }
+    this.emit('seedComplete');
   }
 
   async listDialogs(count = 50) {

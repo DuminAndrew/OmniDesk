@@ -41,6 +41,8 @@ contextBridge.exposeInMainWorld('omnidesk', {
   chats: {
     list:         () => invoke('chats:list'),
     markRead:     (data) => invoke('chats:markRead', data),
+    togglePin:    (data) => invoke('chats:togglePin', data),
+    syncDialogs:  () => invoke('chats:syncDialogs'),
     attachClient: (data) => invoke('chats:attachClient', data)
   },
   messages: {

@@ -93,7 +93,7 @@
   background: var(--bg-input); border: 1px solid var(--border);
   border-radius: var(--radius-md); padding: 12px 14px;
 }
-.card-stack { padding: 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+.card-stack { padding: 22px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; }
 
 /* View: CRM */
 .view--crm, .view--notes, .view--settings {

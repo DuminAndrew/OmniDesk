@@ -121,6 +121,22 @@ class TelegramService extends EventEmitter {
     logger.info('Telegram connected');
     this.emit('login:success');
     this.emit('status', { connected: true });
+    this._seedDialogs().catch(() => {});
+  }
+
+  async _seedDialogs() {
+    const dialogs = await this.listDialogs(80);
+    for (const d of dialogs) {
+      this.emit('seed', {
+        source: 'tg',
+        externalChatId: d.externalId,
+        title: d.title,
+        body: d.lastMessage || '',
+        ts: d.lastTs || Date.now(),
+        unread: d.unread || 0
+      });
+    }
+    this.emit('seedComplete');
   }
 
   /**
@@ -146,6 +162,7 @@ class TelegramService extends EventEmitter {
       this._wireEvents();
       logger.info('Telegram reconnected as', me.username || me.firstName);
       this.emit('status', { connected: true });
+      this._seedDialogs().catch(() => {});
       return true;
     } catch (err) {
       logger.error('TG reconnect failed', err.message);

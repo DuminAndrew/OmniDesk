@@ -44,6 +44,29 @@ function init({ onNewMessage }) {
 
   tg.on('message', handle);
   vk.on('message', handle);
+
+  // Seed events: known dialogs from initial sync (no notification, no message row)
+  const handleSeed = (payload) => {
+    try {
+      chatsRepo.upsert({
+        source: payload.source,
+        external_id: payload.externalChatId,
+        title: payload.title,
+        last_message: payload.body,
+        last_ts: payload.ts,
+        unreadInc: 0
+      });
+    } catch (err) {
+      logger.error('seed failed', err.message);
+    }
+  };
+  const handleSeedComplete = () => {
+    onNewMessage && onNewMessage({});
+  };
+  tg.on('seed', handleSeed);
+  vk.on('seed', handleSeed);
+  tg.on('seedComplete', handleSeedComplete);
+  vk.on('seedComplete', handleSeedComplete);
 }
 
 module.exports = { init };

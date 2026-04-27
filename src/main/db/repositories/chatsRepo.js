@@ -2,8 +2,16 @@ const { getDb } = require('../database');
 
 function list() {
   return getDb()
-    .prepare('SELECT * FROM chats ORDER BY COALESCE(last_ts, 0) DESC')
+    .prepare('SELECT * FROM chats ORDER BY is_pinned DESC, COALESCE(last_ts, 0) DESC')
     .all();
+}
+
+function togglePin(id) {
+  const cur = getDb().prepare('SELECT is_pinned FROM chats WHERE id = ?').get(id);
+  if (!cur) return null;
+  const next = cur.is_pinned ? 0 : 1;
+  getDb().prepare('UPDATE chats SET is_pinned = ? WHERE id = ?').run(next, id);
+  return get(id);
 }
 
 function getByExternal(source, externalId) {
@@ -45,4 +53,4 @@ function attachClient(chatId, clientId) {
   return get(chatId);
 }
 
-module.exports = { list, get, getByExternal, upsert, markRead, attachClient };
+module.exports = { list, get, getByExternal, upsert, markRead, attachClient, togglePin };

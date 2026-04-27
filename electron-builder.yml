@@ -19,6 +19,14 @@ npmRebuild: false
 asarUnpack:
   - node_modules/better-sqlite3/**
 
+extraResources:
+  - from: build/icon.ico
+    to: icon.ico
+  - from: build/icon.png
+    to: icon.png
+  - from: build/tray.png
+    to: tray.png
+
 win:
   target:
     - target: nsis

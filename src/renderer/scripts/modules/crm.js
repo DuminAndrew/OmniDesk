@@ -38,12 +38,16 @@ async function refreshGrid(view) {
     const tags = (tagsRes.data || []).map(t => `<span class="tag-chip">${escapeHtml(t.name)}</span>`).join('');
     const card = document.createElement('div');
     card.className = 'client-card';
+    const initial = (c.display_name || '?').trim().charAt(0).toUpperCase();
     card.innerHTML = `
-      <div class="client-card__head">
-        <div class="client-card__name">${escapeHtml(c.display_name)}</div>
-        <span class="status-pill ${c.status}">${escapeHtml(statusLabel(c.status))}</span>
+      <div style="display:flex;gap:14px;align-items:center;margin-bottom:6px">
+        <div class="avatar" style="background: var(--gradient-bento); width: 48px; height: 48px; box-shadow: 0 0 0 2px rgba(255,107,58,.15), 0 4px 14px rgba(235,93,58,.3)">${escapeHtml(initial)}</div>
+        <div style="min-width:0;flex:1">
+          <div class="client-card__name" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(c.display_name)}</div>
+          <span class="status-pill ${c.status}">${escapeHtml(statusLabel(c.status))}</span>
+        </div>
       </div>
-      ${c.link ? `<div class="muted small" style="margin-top:6px">${escapeHtml(c.link)}</div>` : ''}
+      ${c.link ? `<div class="muted small">${escapeHtml(c.link)}</div>` : ''}
       <div class="client-card__row">${tags}</div>
       <div class="client-card__row" style="margin-top:14px">
         <button class="btn btn--ghost" data-edit>Редактировать</button>

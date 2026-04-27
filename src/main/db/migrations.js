@@ -63,11 +63,20 @@ CREATE TABLE IF NOT EXISTS client_tags (
 );
 `;
 
+function columnExists(db, table, column) {
+  return db.prepare(`PRAGMA table_info(${table})`).all().some(c => c.name === column);
+}
+
 function applyMigrations(db) {
   db.exec(SCHEMA);
   const row = db.prepare('SELECT version FROM schema_version LIMIT 1').get();
   if (!row) {
     db.prepare('INSERT INTO schema_version(version) VALUES (?)').run(1);
+  }
+
+  // v1 → v2: pin column
+  if (!columnExists(db, 'chats', 'is_pinned')) {
+    db.exec('ALTER TABLE chats ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0');
   }
 }
 

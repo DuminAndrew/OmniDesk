@@ -1,7 +1,13 @@
 const path = require('path');
-const { BrowserWindow, shell } = require('electron');
+const { app, BrowserWindow, shell } = require('electron');
 
 let mainWindow = null;
+
+function iconPath() {
+  return app.isPackaged
+    ? path.join(process.resourcesPath, 'icon.ico')
+    : path.join(__dirname, '..', '..', '..', 'build', 'icon.ico');
+}
 
 function createMainWindow() {
   mainWindow = new BrowserWindow({
@@ -12,7 +18,7 @@ function createMainWindow() {
     show: false,
     backgroundColor: '#0F1115',
     title: 'OmniDesk',
-    icon: path.join(__dirname, '..', '..', '..', 'build', 'icon.ico'),
+    icon: iconPath(),
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, '..', 'preload.js'),
@@ -59,4 +65,4 @@ function quitApp() {
   app.quit();
 }
 
-module.exports = { createMainWindow, getMainWindow, showMainWindow, quitApp };
+module.exports = { createMainWindow, getMainWindow, showMainWindow, quitApp, iconPath };

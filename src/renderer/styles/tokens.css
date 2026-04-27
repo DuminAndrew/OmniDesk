@@ -13,11 +13,13 @@
   --text-muted:     #9f9f9f;
   --text-subtle:    #6b6f7a;
 
-  /* Brand accents (from OmniDeskIcon.svg) */
+  /* Brand accents (from OmniDeskIcon.svg + bentos accent) */
   --tg-blue-1:      #00C6FF;
   --tg-blue-2:      #0072FF;
   --vk-purple-1:    #B06AB3;
   --vk-purple-2:    #4568DC;
+  --bento-accent-1: #FF6B3A;   /* bentos orange */
+  --bento-accent-2: #eb5d3a;
 
   /* Status pill colors */
   --status-new:        #4568DC;
@@ -40,7 +42,9 @@
   --shadow-2: 0 10px 30px rgba(0, 0, 0, .55);
   --gradient-tg:  linear-gradient(135deg, var(--tg-blue-1), var(--tg-blue-2));
   --gradient-vk:  linear-gradient(135deg, var(--vk-purple-1), var(--vk-purple-2));
+  --gradient-bento: radial-gradient(circle at 30% 30%, #FF8458 0%, var(--bento-accent-2) 60%, #b03c1f 100%);
   --gradient-bg:  linear-gradient(135deg, #1E2028 0%, #0F1115 100%);
+  --gradient-card: linear-gradient(180deg, #1c1f28 0%, #14161e 100%);
 
   /* Type */
   --font-base: "Inter", "Poppins", "Segoe UI", -apple-system, system-ui, sans-serif;

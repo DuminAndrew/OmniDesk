@@ -77,6 +77,14 @@ function register({ onWebContentsSend }) {
   // ─── Chats / messages ───────────────────────────────────────────────
   ipcMain.handle('chats:list',     safe(async () => chatsRepo.list()));
   ipcMain.handle('chats:markRead', safe(async ({ id }) => { chatsRepo.markRead(id); return true; }));
+  ipcMain.handle('chats:togglePin', safe(async ({ id }) => chatsRepo.togglePin(id)));
+  ipcMain.handle('chats:syncDialogs', safe(async () => {
+    const tasks = [];
+    if (tg.status().connected) tasks.push(tg._seedDialogs().catch(() => {}));
+    if (vk.status().connected) tasks.push(vk._seedDialogs().catch(() => {}));
+    await Promise.all(tasks);
+    return true;
+  }));
   ipcMain.handle('chats:attachClient', safe(async ({ chatId, clientId }) => chatsRepo.attachClient(chatId, clientId)));
   ipcMain.handle('messages:list',  safe(async ({ chatId }) => messagesRepo.listByChat(chatId)));
 
