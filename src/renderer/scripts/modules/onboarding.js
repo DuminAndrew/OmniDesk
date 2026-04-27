@@ -142,6 +142,16 @@ function openTelegramModal(onClose) {
   if (openTgOrgBtn) {
     openTgOrgBtn.addEventListener('click', () => api.openTelegramOrg());
   }
+  const usePublicBtn = node.querySelector('[data-action="use-public"]');
+  if (usePublicBtn) {
+    usePublicBtn.addEventListener('click', () => {
+      // Telegram Desktop public credentials — known and tolerated by Telegram
+      // since 2018, used by many open-source TG clients as fallback.
+      node.querySelector('[data-field="apiId"]').value = '17349';
+      node.querySelector('[data-field="apiHash"]').value = '344583e45741c457fe1862106095a5eb';
+      toast('Ключи Telegram Desktop подставлены. Введите телефон и получайте код.', 'success', 3500);
+    });
+  }
 
   const offLogin = api.on('tg:loginEvent', (ev) => {
     if (ev.type === 'success') { setStatus('Telegram подключён ✓', 'success'); setTimeout(close, 1200); }
