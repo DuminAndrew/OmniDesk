@@ -519,39 +519,60 @@ select option { background: var(--bg-elevated); color: var(--text-primary); }
   background: var(--bg-base-2);
 }
 
-/* Voice player */
+/* Voice player — compact, WhatsApp-like */
 .media-voice {
-  display: grid;
-  grid-template-columns: 36px 1fr auto auto;
+  display: inline-grid;
+  grid-template-columns: auto auto auto auto;
   gap: 10px; align-items: center;
-  padding: 8px 12px;
-  background: rgba(0,0,0,.18);
-  border-radius: var(--r-md);
-  min-width: 240px;
+  padding: 6px 10px 6px 6px;
+  background: rgba(0,0,0,.22);
+  border-radius: var(--r-pill);
+  width: max-content;
+  max-width: 100%;
 }
-.media-voice__transcribe {
-  width: 28px; height: 28px;
+.bubble.out .media-voice { background: rgba(255,255,255,.15); }
+
+.media-voice__btn {
+  width: 32px; height: 32px;
   border-radius: 50%;
-  background: rgba(255,255,255,.06);
-  border: 1px solid var(--border);
+  background: var(--grad-tg);
+  display: grid; place-content: center;
+  color: white;
+  cursor: pointer;
+  border: 0;
+  flex-shrink: 0;
+  transition: transform var(--t-fast);
+}
+.media-voice__btn:hover { transform: scale(1.06); }
+.media-voice__btn:active { transform: scale(0.96); }
+.bubble.out .media-voice__btn { background: white; color: var(--tg-2); }
+
+.media-voice__transcribe {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.08);
   color: var(--text-secondary);
   cursor: pointer;
   display: grid; place-content: center;
-  transition: all var(--t-fast);
+  border: 0;
+  transition: background var(--t-fast), color var(--t-fast), transform var(--t-fast);
+  flex-shrink: 0;
 }
-.media-voice__transcribe:hover { background: rgba(0,198,255,.18); color: var(--tg-1); border-color: rgba(0,198,255,.35); }
-.bubble.out .media-voice__transcribe { background: rgba(255,255,255,.18); color: white; border-color: transparent; }
+.media-voice__transcribe:hover { background: rgba(0,198,255,.22); color: var(--tg-1); transform: scale(1.06); }
+.bubble.out .media-voice__transcribe { background: rgba(255,255,255,.18); color: white; }
+.bubble.out .media-voice__transcribe:hover { background: rgba(255,255,255,.3); }
 .media-voice__transcribe.is-loading { animation: pulse 1.2s infinite; pointer-events: none; }
 .media-voice__transcript {
   margin-top: 8px;
-  padding: 8px 12px;
-  background: rgba(0,0,0,.18);
-  border-radius: var(--r-sm);
+  padding: 10px 12px;
+  background: rgba(0,0,0,.22);
+  border-radius: var(--r-md);
   font-size: 12.5px;
   line-height: 1.5;
   color: var(--text-primary);
   user-select: text;
   border-left: 2px solid var(--tg-1);
+  max-width: 320px;
 }
 .bubble.out .media-voice__transcript { background: rgba(255,255,255,.16); border-left-color: white; color: white; }
 .media-voice__transcript-label {
@@ -590,22 +611,40 @@ select option { background: var(--bg-elevated); color: var(--text-primary); }
   border: 0;
 }
 .bubble.out .media-voice__btn { background: rgba(255,255,255,.95); color: var(--tg-2); }
+/* Pseudo-waveform: many short bars instead of a flat line */
 .media-voice__bar {
-  height: 4px; border-radius: 2px;
-  background: rgba(255,255,255,.18);
+  display: flex; align-items: center; gap: 2px;
+  height: 24px;
+  width: 140px;
   position: relative;
-  overflow: hidden;
+  cursor: pointer;
 }
-.bubble.in .media-voice__bar { background: rgba(255,255,255,.08); }
-.media-voice__progress {
-  position: absolute; left: 0; top: 0; bottom: 0;
-  background: var(--tg-1);
-  width: 0%;
-  transition: width .1s linear;
+.media-voice__wave {
+  flex: 1;
+  display: flex; align-items: center; gap: 2px;
+  height: 100%;
+  position: relative;
 }
-.bubble.out .media-voice__progress { background: white; }
-.media-voice__time { font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
-.bubble.out .media-voice__time { color: rgba(255,255,255,.85); }
+.media-voice__wave-bar {
+  flex: 1;
+  background: rgba(255,255,255,.25);
+  border-radius: 1.5px;
+  transition: background .15s;
+  min-width: 2px;
+}
+.bubble.out .media-voice__wave-bar { background: rgba(255,255,255,.4); }
+.media-voice__wave-bar.is-played { background: var(--tg-1); }
+.bubble.out .media-voice__wave-bar.is-played { background: white; }
+
+.media-voice__time {
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  flex-shrink: 0;
+  min-width: 32px;
+}
+.bubble.out .media-voice__time { color: rgba(255,255,255,.92); }
 
 /* Video / round */
 .media-video {

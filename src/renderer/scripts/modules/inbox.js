@@ -481,12 +481,24 @@ function humanSize(bytes) {
 }
 
 function renderVoicePlayer(a, msg) {
+  // Render 28 bars with pseudo-random heights (deterministic per message id
+  // so the same voice always looks the same)
+  const seed = (msg.id || msg.external_id || 0) >>> 0;
+  let s = seed || 1;
+  const rnd = () => { s = (s * 1664525 + 1013904223) >>> 0; return (s & 0xffff) / 0xffff; };
+  const bars = Array.from({ length: 28 }, () => {
+    const h = 25 + Math.round(rnd() * 75);
+    return `<div class="media-voice__wave-bar" style="height:${h}%"></div>`;
+  }).join('');
+
   return `
     <div class="media-voice">
-      <button class="media-voice__btn" data-play>${icon('play', 14) || '▶'}</button>
-      <div class="media-voice__bar"><div class="media-voice__progress"></div></div>
-      <div class="media-voice__time">${fmtDur(a.duration || 0)}</div>
-      <button class="media-voice__transcribe" data-transcribe title="Расшифровать">${icon('mic', 14)}</button>
+      <button class="media-voice__btn" data-play>${icon('play', 14)}</button>
+      <div class="media-voice__bar" data-bar>
+        <div class="media-voice__wave" data-wave>${bars}</div>
+      </div>
+      <div class="media-voice__time" data-time>${fmtDur(a.duration || 0)}</div>
+      <button class="media-voice__transcribe" data-transcribe title="Расшифровать">${icon('mic', 13)}</button>
     </div>
     ${msg.transcript ? `<div class="media-voice__transcript">
       <span class="media-voice__transcript-label">Расшифровка</span>${escapeHtml(msg.transcript)}
@@ -508,9 +520,15 @@ async function ensureVoiceUrl(a, chat, msg) {
 function bindVoicePlayer(scope, a, chat, msg) {
   const btn = scope.querySelector('[data-play]');
   const transcribeBtn = scope.querySelector('[data-transcribe]');
-  const progress = scope.querySelector('.media-voice__progress');
-  const time = scope.querySelector('.media-voice__time');
+  const time = scope.querySelector('[data-time]');
+  const bar = scope.querySelector('[data-bar]');
+  const waveBars = Array.from(scope.querySelectorAll('.media-voice__wave-bar'));
   let audio = null;
+
+  function paintProgress(ratio) {
+    const playedCount = Math.round(ratio * waveBars.length);
+    waveBars.forEach((b, i) => b.classList.toggle('is-played', i < playedCount));
+  }
 
   btn.addEventListener('click', async () => {
     if (!audio) {
@@ -519,16 +537,31 @@ function bindVoicePlayer(scope, a, chat, msg) {
         const src = await ensureVoiceUrl(a, chat, msg);
         audio = new Audio(src);
         audio.addEventListener('timeupdate', () => {
-          if (audio.duration) progress.style.width = (audio.currentTime / audio.duration * 100) + '%';
+          if (audio.duration) {
+            paintProgress(audio.currentTime / audio.duration);
+          }
           time.textContent = fmtDur(audio.currentTime);
         });
-        audio.addEventListener('ended', () => { btn.innerHTML = icon('play', 14); progress.style.width = '0%'; time.textContent = fmtDur(a.duration || 0); });
+        audio.addEventListener('ended', () => {
+          btn.innerHTML = icon('play', 14);
+          paintProgress(0);
+          time.textContent = fmtDur(a.duration || 0);
+        });
         audio.play();
       } catch (e) { toast('Не удалось воспроизвести: ' + e.message, 'error'); btn.innerHTML = icon('play', 14); }
       return;
     }
     if (audio.paused) { audio.play(); btn.innerHTML = icon('pause', 12); }
     else              { audio.pause(); btn.innerHTML = icon('play', 14); }
+  });
+
+  // Click on the waveform to seek
+  bar.addEventListener('click', (e) => {
+    if (!audio || !audio.duration) return;
+    const rect = bar.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    audio.currentTime = audio.duration * ratio;
+    paintProgress(ratio);
   });
 
   if (transcribeBtn) {
