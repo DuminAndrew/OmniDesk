@@ -4,6 +4,7 @@ import { icon } from './ui/icons.js';
 import { renderOnboarding } from './modules/onboarding.js';
 import { renderInbox } from './modules/inbox.js';
 import { renderCRM } from './modules/crm.js';
+import { renderTasks } from './modules/tasks.js';
 import { renderNotes } from './modules/notes.js';
 import { renderSettings } from './modules/settings.js';
 
@@ -13,6 +14,7 @@ const root = document.getElementById('app');
 const VIEWS = {
   inbox:    renderInbox,
   crm:      renderCRM,
+  tasks:    renderTasks,
   notes:    renderNotes,
   settings: renderSettings
 };
@@ -61,6 +63,19 @@ async function enterApp() {
   const init = (await api.status()).data;
   reflect(tgPill, init.telegram.connected);
   reflect(vkPill, init.vk.connected);
+
+  // Tasks counter (pending) in sidebar
+  const taskCounter = $('[data-bind="tasks-counter"]', shell);
+  const refreshTaskCounter = async () => {
+    try {
+      const r = await api.tasks.counts();
+      const n = r?.data?.pending || 0;
+      if (n > 0) { taskCounter.textContent = String(n); taskCounter.hidden = false; }
+      else taskCounter.hidden = true;
+    } catch (_) {}
+  };
+  refreshTaskCounter();
+  setInterval(refreshTaskCounter, 60_000);
 
   await VIEWS.inbox(host, { injectIcons });
 }

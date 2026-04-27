@@ -163,10 +163,10 @@ function openClientEditor(client, onClose) {
 }
 
 function ribbonSvg() {
-  return `<svg class="bento-hero__ribbon" viewBox="0 0 220 220">
-    <path d="M 10 110 C 30 60, 80 50, 110 75 S 200 130, 210 90"
-          fill="none" stroke="white" stroke-width="3" stroke-linecap="round" opacity="0.9"/>
-    <path d="M 10 130 C 30 170, 80 180, 110 155 S 200 100, 210 140"
-          fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" opacity="0.5"/>
+  return `<svg class="bento-hero__ribbon" viewBox="0 0 240 240" preserveAspectRatio="xMidYMid meet">
+    <path d="M 18 120 C 30 56, 96 14, 156 22"
+          fill="none" stroke="white" stroke-width="3" stroke-linecap="round" opacity="0.92"/>
+    <path d="M 222 118 C 212 184, 144 226, 84 220"
+          fill="none" stroke="white" stroke-width="3" stroke-linecap="round" opacity="0.6"/>
   </svg>`;
 }

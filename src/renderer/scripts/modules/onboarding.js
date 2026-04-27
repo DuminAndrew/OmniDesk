@@ -3,6 +3,24 @@ import { toast } from '../ui/toast.js';
 
 const api = window.omnidesk;
 
+function wireCopyChips(scope) {
+  scope.querySelectorAll('code[data-copy]').forEach(el => {
+    el.title = 'Кликните чтобы скопировать';
+    el.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const text = el.dataset.copy || el.textContent.trim();
+      try {
+        await navigator.clipboard.writeText(text);
+        el.classList.add('is-copied');
+        toast('Скопировано: ' + text.slice(0, 60), 'success', 1800);
+        setTimeout(() => el.classList.remove('is-copied'), 1500);
+      } catch (err) {
+        toast('Не удалось скопировать', 'error');
+      }
+    });
+  });
+}
+
 export async function renderOnboarding(host, { onEnterApp }) {
   host.innerHTML = '';
   const node = tpl('tpl-onboarding');

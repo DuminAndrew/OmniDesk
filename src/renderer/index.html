@@ -121,12 +121,13 @@
           <ol class="guide__list">
             <li>Откройте <a href="#" data-link="https://my.telegram.org/auth">my.telegram.org</a> и войдите по номеру.</li>
             <li>Нажмите <b>«API development tools»</b>.</li>
-            <li>Заполните форму:
+            <li>Заполните форму (кликните по значению — оно скопируется):
               <table class="guide__table">
-                <tr><td><b>App title</b></td><td><code>OmniDesk</code></td></tr>
-                <tr><td><b>Short name</b></td><td><code>omnidesk_<i>любые_цифры</i></code></td></tr>
-                <tr><td><b>URL</b></td><td><code>https://github.com/DuminAndrew/OmniDesk</code></td></tr>
+                <tr><td><b>App title</b></td><td><code data-copy="OmniDesk">OmniDesk</code></td></tr>
+                <tr><td><b>Short name</b></td><td><code data-copy="omnidesk_app">omnidesk_app</code> <span class="muted small">(любая 5–32 ascii строка)</span></td></tr>
+                <tr><td><b>URL</b></td><td><code data-copy="https://github.com/DuminAndrew/OmniDesk">https://github.com/DuminAndrew/OmniDesk</code></td></tr>
                 <tr><td><b>Platform</b></td><td><b>Desktop</b></td></tr>
+                <tr><td><b>Description</b></td><td><span class="muted">оставьте пустым</span></td></tr>
               </table>
             </li>
             <li>Нажмите <b>«Create application»</b>. Если ERROR — обновите страницу, приложение часто всё равно создаётся.</li>
@@ -219,6 +220,7 @@
         <nav class="sidebar__nav">
           <button class="nav-item is-active" data-view="inbox">    <span data-icon="inbox"></span><span>Инбокс</span></button>
           <button class="nav-item"            data-view="crm">      <span data-icon="crm"></span><span>CRM</span></button>
+          <button class="nav-item"            data-view="tasks">    <span data-icon="tasks"></span><span>Задачи</span><span class="nav-counter" data-bind="tasks-counter" hidden></span></button>
           <button class="nav-item"            data-view="notes">    <span data-icon="notes"></span><span>Заметки</span></button>
           <button class="nav-item"            data-view="settings"> <span data-icon="settings"></span><span>Настройки</span></button>
         </nav>
@@ -287,6 +289,24 @@
         <button class="filter" data-status="rejected">Отказы</button>
       </div>
       <div class="client-grid" data-bind="client-grid"></div>
+    </section>
+  </template>
+
+  <!-- ═══════════ View: Tasks ═══════════ -->
+  <template id="tpl-view-tasks">
+    <section class="view view--tasks">
+      <div class="view__head">
+        <h2>Задачи</h2>
+        <button class="btn btn--primary" data-action="new-task"><span data-icon="plus"></span>Новая задача</button>
+      </div>
+      <div class="filters">
+        <button class="filter is-active" data-status="pending">Активные</button>
+        <button class="filter" data-status="today">Сегодня</button>
+        <button class="filter" data-status="overdue">Просрочены</button>
+        <button class="filter" data-status="completed">Завершены</button>
+        <button class="filter" data-status="all">Все</button>
+      </div>
+      <div class="tasks-list" data-bind="tasks-list"></div>
     </section>
   </template>
 

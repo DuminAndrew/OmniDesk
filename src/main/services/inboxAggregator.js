@@ -22,7 +22,7 @@ function init({ onNewMessage, onAvatarReady }) {
         unreadInc: payload.direction === 'in' ? 1 : 0
       });
 
-      const msg = messagesRepo.addUnique({
+      const msg = messagesRepo.addOrEnrich({
         chat_id: chat.id,
         external_id: payload.externalId,
         direction: payload.direction,
@@ -30,7 +30,9 @@ function init({ onNewMessage, onAvatarReady }) {
         ts: payload.ts,
         attachments: payload.attachments || null,
         reply_to_text: payload.reply_to_text || null,
-        reply_to_author: payload.reply_to_author || null
+        reply_to_author: payload.reply_to_author || null,
+        sender_name: payload.sender_name || null,
+        sender_avatar: payload.sender_avatar || null
       });
 
       if (payload.direction === 'in') {

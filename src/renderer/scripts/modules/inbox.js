@@ -136,20 +136,30 @@ function openCtxMenu(x, y, items) {
 }
 
 async function openChat(view, chat) {
-  activeChatId = chat.id;
-  await api.chats.markRead({ id: chat.id });
-  await refreshChats(view);
+  try {
+    activeChatId = chat.id;
+    // Render head + side + whatever messages exist locally — don't wait
+    await refreshThreadHead(view, chat);
+    await refreshSidePanel(view, chat);
+    await refreshThreadMessages(view, chat);
 
-  // First open in this session → pull full history from API
-  if (!historyLoaded.has(chat.id)) {
-    historyLoaded.add(chat.id);
-    api.messages.loadHistory({ chatId: chat.id }).then(async () => {
-      await refreshThreadMessages(view, chat.id);
-    }).catch((e) => toast('История не загружена: ' + (e?.message || e), 'error'));
+    // Background: mark read + refresh sidebar list
+    api.chats.markRead({ id: chat.id }).catch(() => {});
+    refreshChats(view);
+
+    // Background: pull full history once per session
+    if (!historyLoaded.has(chat.id)) {
+      historyLoaded.add(chat.id);
+      try {
+        await api.messages.loadHistory({ chatId: chat.id });
+        await refreshThreadMessages(view, chat);
+      } catch (e) {
+        toast('История не загружена: ' + (e?.message || e), 'error');
+      }
+    }
+  } catch (e) {
+    toast('Ошибка открытия чата: ' + e.message, 'error');
   }
-  await refreshThreadHead(view, chat);
-  await refreshThreadMessages(view, chat.id);
-  await refreshSidePanel(view, chat);
 }
 
 async function refreshThreadHead(view, chat) {
@@ -168,13 +178,30 @@ async function refreshThreadHead(view, chat) {
     <span class="source-badge ${chat.source}">${chat.source.toUpperCase()}</span>`;
 }
 
-async function refreshThreadMessages(view, chatId) {
-  const chat = chatsCache.find(c => c.id === chatId);
+async function refreshThreadMessages(view, chatOrId) {
+  const chatId = typeof chatOrId === 'object' ? chatOrId.id : chatOrId;
+  let chat = typeof chatOrId === 'object'
+    ? chatOrId
+    : chatsCache.find(c => c.id === chatId);
+  if (!chat) {
+    // Defensive: pull fresh list ignoring filter
+    const r = await api.chats.list({});
+    chat = (r.data || []).find(c => c.id === chatId);
+  }
   if (!chat) return;
+  const box = bind(view, 'thread-messages');
+  if (!box) return;
   const msgsRes = await api.messages.list({ chatId });
   const msgs = msgsRes.data || [];
-  const box = bind(view, 'thread-messages');
   clear(box);
+  if (!msgs.length) {
+    const empty = document.createElement('div');
+    empty.className = 'muted small';
+    empty.style.cssText = 'text-align:center;padding:30px;opacity:.7';
+    empty.textContent = 'История загружается…';
+    box.appendChild(empty);
+    return;
+  }
   for (const m of msgs) {
     box.appendChild(renderBubble(m, chat));
   }
@@ -188,6 +215,14 @@ function renderBubble(m, chat) {
   const bubble = document.createElement('div');
   bubble.className = `bubble ${m.direction}`;
   let html = '';
+
+  // Sender name (groups / chats)
+  if (m.direction === 'in' && m.sender_name) {
+    const av = m.sender_avatar
+      ? `<div class="bubble__sender-avatar"><img src="${escapeHtml(m.sender_avatar)}" onerror="this.remove()"/></div>`
+      : '';
+    html += `<div class="bubble__sender">${av}${escapeHtml(m.sender_name)}</div>`;
+  }
 
   if (m.reply_to_text) {
     html += `<div class="bubble__reply">${escapeHtml(m.reply_to_text)}</div>`;
@@ -508,11 +543,14 @@ async function refreshSidePanel(view, chat) {
 }
 
 function ribbonSvg() {
+  // Two arcs hugging the avatar circle from outside (top-left & bottom-right).
+  // The arcs extend slightly past the disc so the ribbon-effect is visible
+  // around the edges, but the lines never cross the centred avatar.
   return `
-    <svg class="bento-hero__ribbon" viewBox="0 0 220 220" preserveAspectRatio="xMidYMid meet">
-      <path d="M 10 110 C 30 60, 80 50, 110 75 S 200 130, 210 90"
-            fill="none" stroke="white" stroke-width="3" stroke-linecap="round" opacity="0.9"/>
-      <path d="M 10 130 C 30 170, 80 180, 110 155 S 200 100, 210 140"
-            fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" opacity="0.55"/>
+    <svg class="bento-hero__ribbon" viewBox="0 0 240 240" preserveAspectRatio="xMidYMid meet">
+      <path d="M 18 120 C 30 56, 96 14, 156 22"
+            fill="none" stroke="white" stroke-width="3" stroke-linecap="round" opacity="0.92"/>
+      <path d="M 222 118 C 212 184, 144 226, 84 220"
+            fill="none" stroke="white" stroke-width="3" stroke-linecap="round" opacity="0.6"/>
     </svg>`;
 }

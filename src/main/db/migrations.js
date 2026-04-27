@@ -97,6 +97,41 @@ function applyMigrations(db) {
   if (!columnExists(db, 'clients', 'tg_link'))    db.exec('ALTER TABLE clients ADD COLUMN tg_link TEXT');
   if (!columnExists(db, 'clients', 'avatar_url')) db.exec('ALTER TABLE clients ADD COLUMN avatar_url TEXT');
   if (!columnExists(db, 'clients', 'about'))      db.exec('ALTER TABLE clients ADD COLUMN about TEXT');
+
+  // v4 → v5: Tasks
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS tasks (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      client_id    INTEGER,
+      chat_id      INTEGER,
+      title        TEXT NOT NULL,
+      body         TEXT,
+      due_at       INTEGER,
+      priority     TEXT NOT NULL DEFAULT 'normal',  -- low | normal | high
+      completed    INTEGER NOT NULL DEFAULT 0,
+      completed_at INTEGER,
+      created_at   INTEGER NOT NULL,
+      updated_at   INTEGER NOT NULL,
+      FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE SET NULL,
+      FOREIGN KEY (chat_id)   REFERENCES chats(id)   ON DELETE SET NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_tasks_due       ON tasks(due_at);
+    CREATE INDEX IF NOT EXISTS idx_tasks_client    ON tasks(client_id);
+    CREATE INDEX IF NOT EXISTS idx_tasks_completed ON tasks(completed);
+  `);
+
+  // v5 → v6: voice transcription
+  if (!columnExists(db, 'messages', 'transcript')) {
+    db.exec('ALTER TABLE messages ADD COLUMN transcript TEXT');
+  }
+
+  // v6 → v7: per-message sender name (for groups / multi-user chats)
+  if (!columnExists(db, 'messages', 'sender_name')) {
+    db.exec('ALTER TABLE messages ADD COLUMN sender_name TEXT');
+  }
+  if (!columnExists(db, 'messages', 'sender_avatar')) {
+    db.exec('ALTER TABLE messages ADD COLUMN sender_avatar TEXT');
+  }
 }
 
 module.exports = { applyMigrations };

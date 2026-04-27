@@ -151,15 +151,25 @@ class TelegramService extends EventEmitter {
         const externalChatId = String(msg.chatId || msg.peerId?.userId || msg.peerId?.chatId || msg.peerId?.channelId || msg.peerId);
         const n = normalizeTgMessage(msg);
 
+        let sender_name = null;
+        if (!out && sender) {
+          sender_name = (sender.firstName ? sender.firstName + (sender.lastName ? ' ' + sender.lastName : '') : null)
+            || sender.title
+            || sender.username
+            || null;
+        }
+
         this.emit('message', {
           source: 'tg',
           externalChatId,
           title,
-          avatarUrl: null, // TG avatars are downloaded separately, see _ensureAvatar
+          avatarUrl: null,
           body: n.body,
           attachments: n.attachments,
           reply_to_text: n.reply_to_text,
           reply_to_author: n.reply_to_author,
+          sender_name,
+          sender_avatar: null,
           ts: (msg.date || Math.floor(Date.now() / 1000)) * 1000,
           direction: out ? 'out' : 'in',
           externalId: String(msg.id)
@@ -227,18 +237,31 @@ class TelegramService extends EventEmitter {
     if (!this.client || !this.connected) return [];
     const entity = /^-?\d+$/.test(String(externalChatId)) ? Number(externalChatId) : externalChatId;
     const messages = await this.client.getMessages(entity, { limit });
-    return messages.slice().reverse().map(m => {
+    const out = [];
+    for (const m of messages.slice().reverse()) {
       const n = normalizeTgMessage(m);
-      return {
+      let sender_name = null;
+      if (!m.out) {
+        const sender = await m.getSender().catch(() => null);
+        if (sender) {
+          sender_name = (sender.firstName ? sender.firstName + (sender.lastName ? ' ' + sender.lastName : '') : null)
+            || sender.title
+            || sender.username
+            || null;
+        }
+      }
+      out.push({
         externalId: String(m.id),
         direction: m.out ? 'out' : 'in',
         body: n.body,
         attachments: n.attachments,
         reply_to_text: n.reply_to_text,
         reply_to_author: n.reply_to_author,
+        sender_name,
         ts: (m.date || 0) * 1000
-      };
-    });
+      });
+    }
+    return out;
   }
 
   /**

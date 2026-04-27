@@ -45,6 +45,14 @@ class VkService extends EventEmitter {
           const normalized = normalizeVkMessage(m);
           const meta = await this._resolvePeer(peerId).catch(() => null);
 
+          // For incoming messages in chats/groups, resolve the actual sender
+          // (different from the conversation peer)
+          let sender_name = null, sender_avatar = null;
+          if (!isOut && raw.from_id && raw.from_id !== Number(peerId)) {
+            const s = await this._resolvePeer(raw.from_id).catch(() => null);
+            if (s) { sender_name = s.title; sender_avatar = s.avatarUrl; }
+          }
+
           this.emit('message', {
             source: 'vk',
             externalChatId: String(peerId),
@@ -54,6 +62,8 @@ class VkService extends EventEmitter {
             attachments: normalized.attachments,
             reply_to_text: normalized.reply_to_text,
             reply_to_author: normalized.reply_to_author,
+            sender_name,
+            sender_avatar,
             ts,
             direction: isOut ? 'out' : 'in',
             externalId: ctx.id ? String(ctx.id) : null
@@ -178,11 +188,41 @@ class VkService extends EventEmitter {
   async loadHistory(peerId, count = 100) {
     if (!this.vk || !this.connected) return [];
     const res = await this.vk.api.messages.getHistory({
-      peer_id: Number(peerId), count, extended: 0
+      peer_id: Number(peerId), count, extended: 1
     });
     const items = (res.items || []).slice().reverse();
+    const profiles = res.profiles || [];
+    const groups   = res.groups   || [];
+
+    // Resolve missing sender profiles in batch (VK only includes a subset)
+    const missing = [...new Set(items
+      .map(m => m.from_id)
+      .filter(id => id > 0 && !profiles.find(p => p.id === id)))];
+    if (missing.length) {
+      try {
+        const extra = await this.vk.api.users.get({
+          user_ids: missing.join(','), fields: 'photo_100'
+        });
+        profiles.push(...extra);
+      } catch (err) { logger.warn('users.get for history failed', err.message); }
+    }
+    const resolveSender = (fromId) => {
+      if (fromId > 0) {
+        const p = profiles.find(p => p.id === fromId);
+        if (p) return { name: `${p.first_name} ${p.last_name}`, avatar: p.photo_100 || null };
+        return { name: `Пользователь VK #${fromId}`, avatar: null };
+      }
+      if (fromId < 0) {
+        const g = groups.find(g => g.id === Math.abs(fromId));
+        if (g) return { name: g.name, avatar: g.photo_100 || null };
+        return { name: 'Сообщество', avatar: null };
+      }
+      return { name: null, avatar: null };
+    };
+
     return items.map(m => {
       const n = normalizeVkMessage(m);
+      const s = resolveSender(m.from_id);
       return {
         externalId: String(m.id),
         direction: m.out ? 'out' : 'in',
@@ -190,6 +230,8 @@ class VkService extends EventEmitter {
         attachments: n.attachments,
         reply_to_text: n.reply_to_text,
         reply_to_author: n.reply_to_author,
+        sender_name: m.out ? null : s.name,
+        sender_avatar: m.out ? null : s.avatar,
         ts: (m.date || 0) * 1000
       };
     });

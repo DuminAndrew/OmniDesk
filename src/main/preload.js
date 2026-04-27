@@ -39,7 +39,7 @@ contextBridge.exposeInMainWorld('omnidesk', {
 
   // ── Chats / messages ──────────────────────────────────────────
   chats: {
-    list:         () => invoke('chats:list'),
+    list:         (filter) => invoke('chats:list', filter),
     markRead:     (data) => invoke('chats:markRead', data),
     togglePin:    (data) => invoke('chats:togglePin', data),
     syncDialogs:  () => invoke('chats:syncDialogs'),
@@ -82,6 +82,25 @@ contextBridge.exposeInMainWorld('omnidesk', {
     attach:        (data) => invoke('tags:attach', data),
     detach:        (data) => invoke('tags:detach', data),
     listForClient: (data) => invoke('tags:listForClient', data)
+  },
+
+  // ── Tasks ─────────────────────────────────────────────────────
+  tasks: {
+    list:           (filter) => invoke('tasks:list', filter),
+    get:            (data) => invoke('tasks:get', data),
+    create:         (data) => invoke('tasks:create', data),
+    update:         (data) => invoke('tasks:update', data),
+    toggleComplete: (data) => invoke('tasks:toggleComplete', data),
+    remove:         (data) => invoke('tasks:remove', data),
+    counts:         () => invoke('tasks:counts')
+  },
+
+  // ── Whisper / voice transcription ─────────────────────────────
+  whisper: {
+    status:        () => invoke('whisper:status'),
+    downloadModel: () => invoke('whisper:downloadModel'),
+    transcribe:    (data) => invoke('whisper:transcribe', data),
+    saveTranscript:(data) => invoke('whisper:saveTranscript', data)
   },
 
   // ── Subscriptions to push events from main ────────────────────

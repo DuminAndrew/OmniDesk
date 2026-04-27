@@ -9,6 +9,7 @@ const chatsRepo = require('./db/repositories/chatsRepo');
 const messagesRepo = require('./db/repositories/messagesRepo');
 const notesRepo = require('./db/repositories/notesRepo');
 const tagsRepo = require('./db/repositories/tagsRepo');
+const tasksRepo = require('./db/repositories/tasksRepo');
 
 const logger = require('./utils/logger');
 
@@ -101,12 +102,17 @@ function register({ onWebContentsSend }) {
       history = await tg.loadHistory(chat.external_id, limit);
     }
     for (const h of history) {
-      messagesRepo.addUnique({
+      messagesRepo.addOrEnrich({
         chat_id: chat.id,
         external_id: h.externalId,
         direction: h.direction,
         body: h.body,
-        ts: h.ts
+        ts: h.ts,
+        attachments: h.attachments,
+        reply_to_text: h.reply_to_text,
+        reply_to_author: h.reply_to_author,
+        sender_name: h.sender_name,
+        sender_avatar: h.sender_avatar
       });
     }
     return messagesRepo.listByChat(chat.id);
@@ -149,6 +155,15 @@ function register({ onWebContentsSend }) {
   ipcMain.handle('tags:attach',        safe(async ({ clientId, tagId }) => { tagsRepo.attach(clientId, tagId); return true; }));
   ipcMain.handle('tags:detach',        safe(async ({ clientId, tagId }) => { tagsRepo.detach(clientId, tagId); return true; }));
   ipcMain.handle('tags:listForClient', safe(async ({ clientId }) => tagsRepo.listForClient(clientId)));
+
+  // ─── Tasks ─────────────────────────────────────────────────────────
+  ipcMain.handle('tasks:list',           safe(async (filter) => tasksRepo.list(filter || {})));
+  ipcMain.handle('tasks:get',            safe(async ({ id }) => tasksRepo.get(id)));
+  ipcMain.handle('tasks:create',         safe(async (data) => tasksRepo.create(data)));
+  ipcMain.handle('tasks:update',         safe(async ({ id, ...patch }) => tasksRepo.update(id, patch)));
+  ipcMain.handle('tasks:toggleComplete', safe(async ({ id }) => tasksRepo.toggleComplete(id)));
+  ipcMain.handle('tasks:remove',         safe(async ({ id }) => tasksRepo.remove(id)));
+  ipcMain.handle('tasks:counts',         safe(async () => tasksRepo.counts()));
 }
 
 module.exports = { register };
