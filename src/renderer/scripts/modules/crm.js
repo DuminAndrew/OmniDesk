@@ -1,4 +1,4 @@
-import { tpl, $, $$, bind, clear, escapeHtml, statusLabel } from '../ui/dom.js';
+import { tpl, $, $$, bind, clear, escapeHtml, statusLabel, initials, avatarGradient } from '../ui/dom.js';
 import { toast } from '../ui/toast.js';
 import { icon } from '../ui/icons.js';
 
@@ -50,10 +50,11 @@ async function renderClientCard(c, view) {
   card.className = 'bento-hero';
   card.style.cursor = 'pointer';
 
-  const initial = (c.display_name || '?').trim().charAt(0).toUpperCase();
+  const ini = initials(c.display_name);
+  const grad = avatarGradient(c.display_name || String(c.id));
   const avatarMarkup = c.avatar_url
-    ? `<img src="${escapeHtml(c.avatar_url)}" alt="" onerror="this.replaceWith(document.createTextNode('${escapeHtml(initial)}'))"/>`
-    : escapeHtml(initial);
+    ? `<img src="${escapeHtml(c.avatar_url)}" alt="" onerror="this.parentNode.innerHTML='<span class=&quot;bento-hero__avatar-initials&quot;>${escapeHtml(ini)}</span>'"/>`
+    : `<span class="bento-hero__avatar-initials">${escapeHtml(ini)}</span>`;
 
   // Color disc by main source: TG > VK > CRM(orange)
   const discCls = hasTg ? 'tg' : hasVk ? 'vk' : 'crm';
@@ -62,7 +63,7 @@ async function renderClientCard(c, view) {
     <div class="bento-hero__stage">
       <div class="bento-hero__disc ${discCls}"></div>
       ${ribbonSvg()}
-      <div class="bento-hero__avatar">${avatarMarkup}</div>
+      <div class="bento-hero__avatar" style="background:${grad}">${avatarMarkup}</div>
     </div>
     <div class="bento-hero__name">${escapeHtml(c.display_name)}</div>
     <div class="bento-hero__sub">

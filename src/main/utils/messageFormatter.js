@@ -67,7 +67,12 @@ function extractVkAttachments(att) {
           kind: 'video',
           previewUrl: pickPreviewVkPhoto({ sizes: a.video?.image }),
           title: a.video?.title || '',
-          duration: a.video?.duration || 0
+          duration: a.video?.duration || 0,
+          // VK locked direct mp4 URLs in 2022; we open the canonical web page
+          // in the in-app browser when the user clicks the placeholder.
+          vkUrl: a.video
+            ? `https://vk.com/video${a.video.owner_id}_${a.video.id}${a.video.access_key ? '?list=' + a.video.access_key : ''}`
+            : null
         });
         break;
       case 'sticker':
@@ -127,12 +132,26 @@ function composeVkBody({ text, attachments, geo, fwd_messages, reply_message } =
   }
   if (geo) parts.push('📍 Геолокация');
   if (Array.isArray(fwd_messages) && fwd_messages.length) {
-    parts.push(`↩️ Пересланные (${fwd_messages.length})`);
+    parts.push(`↻ ${fwd_messages.length} пересланных`);
   }
   return parts.join(' · ').slice(0, 200) || (reply_message ? '↪️ Ответ' : '[пустое сообщение]');
 }
 
+function extractVkForwarded(fwds) {
+  if (!Array.isArray(fwds) || !fwds.length) return [];
+  return fwds.map(f => ({
+    kind: 'forwarded',
+    text: f.text || '',
+    fromId: f.from_id,
+    date: (f.date || 0) * 1000,
+    attachments: extractVkAttachments(f.attachments || []),
+    nested: extractVkForwarded(f.fwd_messages || [])
+  }));
+}
+
 function normalizeVkMessage(m) {
+  const att = extractVkAttachments(m.attachments);
+  const fwds = extractVkForwarded(m.fwd_messages);
   return {
     body: composeVkBody({
       text: m.text,
@@ -141,7 +160,7 @@ function normalizeVkMessage(m) {
       fwd_messages: m.fwd_messages,
       reply_message: m.reply_message
     }),
-    attachments: extractVkAttachments(m.attachments),
+    attachments: [...att, ...fwds],
     reply_to_text: m.reply_message ? (m.reply_message.text?.slice(0, 200) || '') : null,
     reply_to_author: null
   };

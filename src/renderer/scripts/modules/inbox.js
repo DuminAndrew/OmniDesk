@@ -1,4 +1,4 @@
-import { tpl, $, $$, bind, clear, fmtTime, escapeHtml } from '../ui/dom.js';
+import { tpl, $, $$, bind, clear, fmtTime, escapeHtml, initials, avatarGradient } from '../ui/dom.js';
 import { toast } from '../ui/toast.js';
 import { icon } from '../ui/icons.js';
 
@@ -61,14 +61,19 @@ async function refreshChats(view) {
 }
 
 function avatarHtml(chat, size = 'md') {
-  const initial = (chat.title || '?').trim().charAt(0).toUpperCase();
+  const ini = initials(chat.title);
   const sizeClass = size === 'lg' ? 'avatar avatar--lg' : 'avatar';
-  const inner = chat.avatar_url
-    ? `<img src="${escapeHtml(chat.avatar_url)}" alt="" loading="lazy" onerror="this.remove()"/>`
-    : escapeHtml(initial);
+  const grad = avatarGradient(chat.title || chat.external_id || '');
+  if (chat.avatar_url) {
+    return `
+      <div class="${sizeClass} ${chat.source}" style="background:${grad}">
+        <img src="${escapeHtml(chat.avatar_url)}" alt="" loading="lazy" onerror="this.remove()"/>
+        <span class="avatar__src ${chat.source}">${icon(chat.source, 11)}</span>
+      </div>`;
+  }
   return `
-    <div class="${sizeClass} ${chat.source}">
-      ${inner}
+    <div class="${sizeClass} ${chat.source}" style="background:${grad}">
+      <span class="avatar__initials">${escapeHtml(ini)}</span>
       <span class="avatar__src ${chat.source}">${icon(chat.source, 11)}</span>
     </div>`;
 }
@@ -309,18 +314,50 @@ function renderAttachment(a, chat, msg) {
     }
     case 'video': {
       const cls = a.round ? 'media-video is-round' : 'media-video';
-      div.innerHTML = `<div class="${cls}"><div class="media-video__icon">${a.round ? '📹' : '🎬'}</div><div class="media-video__label">${a.round ? 'Кружок' : 'Видео'}${a.duration ? ' · ' + fmtDur(a.duration) : ''}</div></div>`;
+      const label = (a.round ? 'Кружок' : (a.title || 'Видео')) + (a.duration ? ' · ' + fmtDur(a.duration) : '');
+      div.innerHTML = `<div class="${cls}">
+        <div class="media-video__icon">${a.round ? '📹' : '🎬'}</div>
+        <div class="media-video__label">${escapeHtml(label)}</div>
+        <div class="muted small" style="margin-top:4px">Нажмите для воспроизведения</div>
+      </div>`;
       div.querySelector('.media-video').addEventListener('click', async () => {
-        if (a.tgRef && chat.source === 'tg') {
+        // Telegram → download mp4 and play inline
+        if (a.tgRef && chat.source === 'tg' && msg.external_id) {
           try {
             toast('Скачиваем видео…', 'info');
             const r = await api.media.download({ source: 'tg', externalChatId: chat.external_id, msgId: msg.external_id, kind: a.round ? 'round' : 'video', ext: 'mp4' });
             if (r.ok && r.data) {
               div.innerHTML = `<video controls autoplay style="max-width:320px;border-radius:12px"><source src="${r.data}" type="video/mp4"></video>`;
+            } else {
+              toast('Не удалось скачать: ' + (r?.error || 'нет данных'), 'error');
             }
           } catch (e) { toast(e.message, 'error'); }
+          return;
         }
+        // VK videos can't be played inline (locked); open vk.com page
+        if (chat.source === 'vk' && a.vkUrl) {
+          api.openExternal(a.vkUrl);
+          return;
+        }
+        toast('Воспроизведение недоступно', 'error');
       });
+      return div;
+    }
+    case 'forwarded': {
+      div.className = 'bubble-fwd';
+      let html = `<div class="bubble-fwd__head">${icon('link', 12)} Пересланное сообщение</div>`;
+      if (a.text) html += `<div class="bubble-fwd__body">${escapeHtml(a.text)}</div>`;
+      div.innerHTML = html;
+      // Render nested attachments inside the forward
+      for (const sub of (a.attachments || [])) {
+        const node = renderAttachment(sub, chat, msg);
+        if (node) div.appendChild(node);
+      }
+      // Recursive nested forwards
+      for (const sub of (a.nested || [])) {
+        const node = renderAttachment(sub, chat, msg);
+        if (node) div.appendChild(node);
+      }
       return div;
     }
     case 'sticker': {
@@ -575,19 +612,19 @@ async function refreshSidePanel(view, chat) {
   const side = bind(view, 'side-panel');
   clear(side);
 
-  // Walker-style hero
   const hero = document.createElement('div');
   hero.className = 'bento-hero';
-  const initial = (chat.title || '?').trim().charAt(0).toUpperCase();
+  const ini = initials(chat.title);
+  const grad = avatarGradient(chat.title || chat.external_id || '');
   const avatarMarkup = chat.avatar_url
-    ? `<img src="${escapeHtml(chat.avatar_url)}" alt="" onerror="this.replaceWith(document.createTextNode('${escapeHtml(initial)}'))"/>`
-    : escapeHtml(initial);
+    ? `<img src="${escapeHtml(chat.avatar_url)}" alt="" onerror="this.parentNode.innerHTML='<span class=&quot;bento-hero__avatar-initials&quot;>${escapeHtml(ini)}</span>'"/>`
+    : `<span class="bento-hero__avatar-initials">${escapeHtml(ini)}</span>`;
 
   hero.innerHTML = `
     <div class="bento-hero__stage">
       <div class="bento-hero__disc ${chat.source}"></div>
       ${ribbonSvg()}
-      <div class="bento-hero__avatar">${avatarMarkup}</div>
+      <div class="bento-hero__avatar" style="background:${grad}">${avatarMarkup}</div>
     </div>
     <div class="bento-hero__name">${escapeHtml(chat.title || 'Без имени')}</div>
     <div class="bento-hero__sub">${SRC_LABEL[chat.source]} · ID ${escapeHtml(chat.external_id)}</div>

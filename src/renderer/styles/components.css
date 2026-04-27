@@ -325,6 +325,43 @@ select option { background: var(--bg-elevated); color: var(--text-primary); }
   z-index: 2;          /* above the decorative ribbon */
 }
 .bento-hero__avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+.bento-hero__avatar-initials {
+  font-size: 64px; font-weight: 700; color: #fff;
+  letter-spacing: -.02em;
+  text-shadow: 0 2px 12px rgba(0,0,0,.45);
+}
+.avatar__initials {
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  letter-spacing: -.01em;
+  text-shadow: 0 1px 4px rgba(0,0,0,.4);
+}
+.avatar--lg .avatar__initials { font-size: 22px; }
+
+/* Forwarded message block */
+.bubble-fwd {
+  margin-top: 8px;
+  padding: 10px 12px;
+  background: rgba(255,255,255,.04);
+  border-left: 3px solid var(--vk-1);
+  border-radius: 0 var(--r-md) var(--r-md) 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+.bubble.out .bubble-fwd { background: rgba(255,255,255,.18); border-left-color: rgba(255,255,255,.7); }
+.bubble-fwd__head {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--vk-1);
+  display: flex; align-items: center; gap: 6px;
+  margin-bottom: 4px;
+}
+.bubble.out .bubble-fwd__head { color: rgba(255,255,255,.85); }
+.bubble-fwd__body { white-space: pre-wrap; user-select: text; color: var(--text-primary); }
+.bubble.out .bubble-fwd__body { color: white; }
+.bubble-fwd .media-photo { max-width: 200px; max-height: 200px; }
+.bubble-fwd .media-voice { min-width: 200px; }
 .bento-hero__name {
   font-size: 22px;
   font-weight: 700;

@@ -4,6 +4,14 @@ const credentialsManager = require('./credentialsManager');
 const logger = require('../utils/logger');
 const { normalizeVkMessage, composeVkBody } = require('../utils/messageFormatter');
 
+// VK returns these URLs for users/groups that have no real avatar.
+// We treat them as null so the renderer falls back to initials.
+function realAvatar(url) {
+  if (!url) return null;
+  if (/\/images\/(camera|deactivated|community)_/i.test(url)) return null;
+  return url;
+}
+
 class VkService extends EventEmitter {
   constructor() {
     super();
@@ -114,7 +122,7 @@ class VkService extends EventEmitter {
       const res = await this.vk.api.groups.getById({ group_id: String(Math.abs(id)), fields: 'photo_100' });
       const g = (res && (res.groups || res))[0];
       if (!g) return null;
-      return { title: g.name, avatarUrl: g.photo_100 || null };
+      return { title: g.name, avatarUrl: realAvatar(g.photo_100) };
     }
     if (id >= 2000000000) {
       const res = await this.vk.api.messages.getConversationsById({
@@ -124,7 +132,7 @@ class VkService extends EventEmitter {
       if (!conv) return null;
       return {
         title: conv.chat_settings?.title || `Беседа`,
-        avatarUrl: conv.chat_settings?.photo?.photo_100 || null
+        avatarUrl: realAvatar(conv.chat_settings?.photo?.photo_100)
       };
     }
     return null;
@@ -209,12 +217,12 @@ class VkService extends EventEmitter {
     const resolveSender = (fromId) => {
       if (fromId > 0) {
         const p = profiles.find(p => p.id === fromId);
-        if (p) return { name: `${p.first_name} ${p.last_name}`, avatar: p.photo_100 || null };
+        if (p) return { name: `${p.first_name} ${p.last_name}`, avatar: realAvatar(p.photo_100) };
         return { name: `Пользователь VK #${fromId}`, avatar: null };
       }
       if (fromId < 0) {
         const g = groups.find(g => g.id === Math.abs(fromId));
-        if (g) return { name: g.name, avatar: g.photo_100 || null };
+        if (g) return { name: g.name, avatar: realAvatar(g.photo_100) };
         return { name: 'Сообщество', avatar: null };
       }
       return { name: null, avatar: null };
