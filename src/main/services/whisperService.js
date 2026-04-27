@@ -6,10 +6,18 @@ const AdmZip = require('adm-zip');
 const paths = require('../utils/paths');
 const logger = require('../utils/logger');
 
-// Pinned whisper.cpp Windows release that ships pre-built CLI binaries.
-const BINARY_URL = 'https://github.com/ggerganov/whisper.cpp/releases/download/v1.7.4/whisper-bin-x64.zip';
 // HuggingFace mirror for ggml-base.bin (≈147 MB, supports Russian well enough for voice notes)
 const MODEL_URL = 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin';
+// GitHub API endpoint for whisper.cpp releases — we autodiscover the
+// Windows asset since names/locations change across versions.
+const RELEASES_API = 'https://api.github.com/repos/ggml-org/whisper.cpp/releases?per_page=20';
+// Asset name patterns we accept, in priority order
+const ASSET_PATTERNS = [
+  /^whisper-bin-x64\.zip$/i,
+  /^whisper-blas-bin-x64\.zip$/i,
+  /^whisper-cublas.*-bin-x64\.zip$/i,
+  /^whisper.*win.*x64.*\.zip$/i
+];
 
 function dir() { return paths.whisperDir(); }
 function binPath()   { return path.join(dir(), 'whisper-cli.exe'); }
@@ -71,6 +79,42 @@ function downloadStream(url, file, onProgress) {
   });
 }
 
+function fetchJson(url) {
+  return new Promise((resolve, reject) => {
+    const get = (u) => {
+      https.get(u, { headers: { 'User-Agent': 'OmniDesk', 'Accept': 'application/vnd.github+json' } }, (res) => {
+        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+          return get(new URL(res.headers.location, u).href);
+        }
+        if (res.statusCode !== 200) {
+          return reject(new Error(`HTTP ${res.statusCode} fetching ${u}`));
+        }
+        let buf = '';
+        res.on('data', (c) => buf += c);
+        res.on('end', () => {
+          try { resolve(JSON.parse(buf)); } catch (err) { reject(err); }
+        });
+      }).on('error', reject);
+    };
+    get(url);
+  });
+}
+
+async function discoverWindowsBinary() {
+  const releases = await fetchJson(RELEASES_API);
+  for (const rel of releases) {
+    if (!Array.isArray(rel.assets)) continue;
+    for (const pattern of ASSET_PATTERNS) {
+      const asset = rel.assets.find(a => pattern.test(a.name));
+      if (asset) {
+        logger.info('Whisper: chose asset', asset.name, 'from release', rel.tag_name);
+        return { url: asset.browser_download_url, name: asset.name, tag: rel.tag_name };
+      }
+    }
+  }
+  throw new Error('Не найден Windows-бинарник whisper.cpp ни в одном последнем релизе');
+}
+
 async function downloadModel(onProgress) {
   if (fs.existsSync(modelPath())) return { ok: true, alreadyPresent: true, path: modelPath() };
   logger.info('Whisper: downloading model…', MODEL_URL);
@@ -80,6 +124,7 @@ async function downloadModel(onProgress) {
 
 async function downloadBinary(onProgress) {
   if (existingBinary()) return { ok: true, alreadyPresent: true, path: existingBinary() };
+  const { url: BINARY_URL, name } = await discoverWindowsBinary();
   logger.info('Whisper: downloading binary…', BINARY_URL);
   const zipFile = path.join(dir(), 'whisper-bin.zip');
   await downloadStream(BINARY_URL, zipFile, onProgress);
