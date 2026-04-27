@@ -2,6 +2,7 @@ const { EventEmitter } = require('events');
 const { VK } = require('vk-io');
 const credentialsManager = require('./credentialsManager');
 const logger = require('../utils/logger');
+const { normalizeVkMessage, composeVkBody } = require('../utils/messageFormatter');
 
 class VkService extends EventEmitter {
   constructor() {
@@ -24,22 +25,35 @@ class VkService extends EventEmitter {
   async _connectWith(token) {
     try {
       this.vk = new VK({ token });
-      // Validate token
       const [me] = await this.vk.api.users.get({});
       logger.info('VK connected as', me.first_name, me.last_name);
 
-      this.vk.updates.on('message_new', (ctx) => {
+      this.vk.updates.on('message_new', async (ctx) => {
         try {
           const peerId = ctx.peerId;
-          const text = ctx.text || '';
           const isOut = ctx.isOutbox;
           const ts = (ctx.createdAt || Math.floor(Date.now() / 1000)) * 1000;
-          const senderName = ctx.senderId ? `VK #${ctx.senderId}` : 'VK';
+
+          const raw = ctx.message || ctx.payload || {};
+          const m = {
+            text:          raw.text || ctx.text || '',
+            attachments:   raw.attachments || ctx.attachments || [],
+            geo:           raw.geo || ctx.geo,
+            fwd_messages:  raw.fwd_messages || raw.forwards,
+            reply_message: raw.reply_message || raw.replyMessage
+          };
+          const normalized = normalizeVkMessage(m);
+          const meta = await this._resolvePeer(peerId).catch(() => null);
+
           this.emit('message', {
             source: 'vk',
             externalChatId: String(peerId),
-            title: senderName,
-            body: text,
+            title:    meta ? meta.title : null,
+            avatarUrl: meta ? meta.avatarUrl : null,
+            body:     normalized.body,
+            attachments: normalized.attachments,
+            reply_to_text: normalized.reply_to_text,
+            reply_to_author: normalized.reply_to_author,
             ts,
             direction: isOut ? 'out' : 'in',
             externalId: ctx.id ? String(ctx.id) : null
@@ -62,24 +76,14 @@ class VkService extends EventEmitter {
     }
   }
 
-  async sendMessage(peerId, text) {
-    if (!this.vk || !this.connected) throw new Error('VK not connected');
-    const random_id = Math.floor(Math.random() * 1e9);
-    await this.vk.api.messages.send({
-      peer_id: Number(peerId),
-      message: String(text),
-      random_id
-    });
-    return { ok: true };
-  }
-
   async _seedDialogs() {
-    const dialogs = await this.listDialogs(80);
+    const dialogs = await this.listDialogs(100);
     for (const d of dialogs) {
       this.emit('seed', {
         source: 'vk',
         externalChatId: d.externalId,
         title: d.title,
+        avatarUrl: d.avatarUrl,
         body: d.lastMessage || '',
         ts: d.lastTs || Date.now(),
         unread: d.unread || 0
@@ -88,52 +92,125 @@ class VkService extends EventEmitter {
     this.emit('seedComplete');
   }
 
-  async listDialogs(count = 50) {
+  async _resolvePeer(peerId) {
+    if (!this.vk) return null;
+    const id = Number(peerId);
+    if (id > 0 && id < 2000000000) {
+      const [u] = await this.vk.api.users.get({ user_ids: String(id), fields: 'photo_100' });
+      if (!u) return null;
+      return { title: `${u.first_name} ${u.last_name}`, avatarUrl: u.photo_100 || null };
+    }
+    if (id < 0) {
+      const res = await this.vk.api.groups.getById({ group_id: String(Math.abs(id)), fields: 'photo_100' });
+      const g = (res && (res.groups || res))[0];
+      if (!g) return null;
+      return { title: g.name, avatarUrl: g.photo_100 || null };
+    }
+    if (id >= 2000000000) {
+      const res = await this.vk.api.messages.getConversationsById({
+        peer_ids: String(id), extended: 1, fields: 'photo_100'
+      }).catch(() => null);
+      const conv = res && res.items && res.items[0];
+      if (!conv) return null;
+      return {
+        title: conv.chat_settings?.title || `Беседа`,
+        avatarUrl: conv.chat_settings?.photo?.photo_100 || null
+      };
+    }
+    return null;
+  }
+
+  async listDialogs(count = 100) {
     if (!this.vk || !this.connected) return [];
-    const res = await this.vk.api.messages.getConversations({ count });
+    const res = await this.vk.api.messages.getConversations({
+      count, extended: 1, fields: 'photo_100,first_name,last_name'
+    });
     const items = res.items || [];
     const profiles = res.profiles || [];
     const groups = res.groups || [];
+
+    const missingUserIds = items
+      .map(it => it.conversation.peer)
+      .filter(p => p.type === 'user' && !profiles.find(pr => pr.id === p.id))
+      .map(p => p.id);
+    if (missingUserIds.length) {
+      try {
+        const extra = await this.vk.api.users.get({
+          user_ids: missingUserIds.join(','), fields: 'photo_100'
+        });
+        profiles.push(...extra);
+      } catch (err) { logger.warn('users.get fallback failed', err.message); }
+    }
+
     return items.map(it => {
       const conv = it.conversation;
       const peer = conv.peer;
-      let title = 'VK';
+      let title = 'VK', avatarUrl = null;
       if (peer.type === 'user') {
         const p = profiles.find(p => p.id === peer.id);
-        title = p ? `${p.first_name} ${p.last_name}` : `User #${peer.id}`;
+        if (p) { title = `${p.first_name} ${p.last_name}`; avatarUrl = p.photo_100 || null; }
+        else   { title = `Пользователь VK`; }
       } else if (peer.type === 'chat') {
-        title = conv.chat_settings?.title || `Chat #${peer.id}`;
+        title = conv.chat_settings?.title || `Беседа`;
+        avatarUrl = conv.chat_settings?.photo?.photo_100 || null;
       } else if (peer.type === 'group') {
         const g = groups.find(g => g.id === Math.abs(peer.id));
-        title = g ? g.name : `Group #${peer.id}`;
+        if (g) { title = g.name; avatarUrl = g.photo_100 || null; }
+        else   { title = `Сообщество`; }
       }
       return {
         externalId: String(peer.id),
         title,
-        lastMessage: it.last_message ? it.last_message.text : '',
+        avatarUrl,
+        lastMessage: it.last_message ? composeVkBody({
+          text:          it.last_message.text,
+          attachments:   it.last_message.attachments,
+          geo:           it.last_message.geo,
+          fwd_messages:  it.last_message.fwd_messages,
+          reply_message: it.last_message.reply_message
+        }) : '',
         lastTs: it.last_message ? it.last_message.date * 1000 : null,
         unread: conv.unread_count || 0
       };
     });
   }
 
+  async loadHistory(peerId, count = 100) {
+    if (!this.vk || !this.connected) return [];
+    const res = await this.vk.api.messages.getHistory({
+      peer_id: Number(peerId), count, extended: 0
+    });
+    const items = (res.items || []).slice().reverse();
+    return items.map(m => {
+      const n = normalizeVkMessage(m);
+      return {
+        externalId: String(m.id),
+        direction: m.out ? 'out' : 'in',
+        body: n.body,
+        attachments: n.attachments,
+        reply_to_text: n.reply_to_text,
+        reply_to_author: n.reply_to_author,
+        ts: (m.date || 0) * 1000
+      };
+    });
+  }
+
+  async sendMessage(peerId, text) {
+    if (!this.vk || !this.connected) throw new Error('VK not connected');
+    const random_id = Math.floor(Math.random() * 1e9);
+    await this.vk.api.messages.send({ peer_id: Number(peerId), message: String(text), random_id });
+    return { ok: true };
+  }
+
   async disconnect() {
-    if (this.vk) {
-      try { await this.vk.updates.stop(); } catch (_) {}
-      this.vk = null;
-    }
+    if (this.vk) { try { await this.vk.updates.stop(); } catch (_) {} this.vk = null; }
     this.connected = false;
     this.emit('status', { connected: false });
   }
 
-  async logout() {
-    await this.disconnect();
-    credentialsManager.clearVk();
-  }
+  async logout() { await this.disconnect(); credentialsManager.clearVk(); }
 
-  status() {
-    return { connected: this.connected };
-  }
+  status() { return { connected: this.connected }; }
 }
 
 module.exports = new VkService();

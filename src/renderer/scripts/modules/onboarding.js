@@ -7,6 +7,7 @@ export async function renderOnboarding(host, { onEnterApp }) {
   host.innerHTML = '';
   const node = tpl('tpl-onboarding');
   host.appendChild(node);
+  if (window.__omnidesk_injectIcons) window.__omnidesk_injectIcons(node);
 
   await refreshLabels(node);
 
@@ -39,6 +40,7 @@ export function openStep(step, onClose) {
 async function openProxyModal(onClose) {
   const node = tpl('tpl-proxy-modal');
   document.body.appendChild(node);
+  if (window.__omnidesk_injectIcons) window.__omnidesk_injectIcons(node);
   const close = () => { node.remove(); onClose && onClose(); };
 
   const cur = (await api.proxy.get()).data || { type: 'none' };
@@ -85,6 +87,7 @@ async function openProxyModal(onClose) {
 function openTelegramModal(onClose) {
   const node = tpl('tpl-tg-modal');
   document.body.appendChild(node);
+  if (window.__omnidesk_injectIcons) window.__omnidesk_injectIcons(node);
   const close = () => { node.remove(); onClose && onClose(); };
 
   const stage = (name) => {
@@ -144,6 +147,7 @@ function openTelegramModal(onClose) {
 function openVkModal(onClose) {
   const node = tpl('tpl-vk-modal');
   document.body.appendChild(node);
+  if (window.__omnidesk_injectIcons) window.__omnidesk_injectIcons(node);
   const close = () => { node.remove(); onClose && onClose(); };
 
   $$('[data-link]', node).forEach(a => {

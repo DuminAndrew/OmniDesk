@@ -29,7 +29,8 @@
       "Bash(git commit *)",
       "Bash(git rm *)",
       "Bash(git push *)",
-      "Bash(gh release create v1.0.0 'dist/OmniDesk Setup 1.0.0.exe' 'dist/OmniDesk Setup 1.0.0.exe.blockmap' --title 'OmniDesk v1.0.0 — первый релиз' --notes ' *)"
+      "Bash(gh release create v1.0.0 'dist/OmniDesk Setup 1.0.0.exe' 'dist/OmniDesk Setup 1.0.0.exe.blockmap' --title 'OmniDesk v1.0.0 — первый релиз' --notes ' *)",
+      "Bash(gh release *)"
     ]
   }
 }

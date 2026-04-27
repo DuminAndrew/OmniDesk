@@ -1,5 +1,6 @@
 import { tpl, $, $$, bind } from './ui/dom.js';
 import { toast } from './ui/toast.js';
+import { icon } from './ui/icons.js';
 import { renderOnboarding } from './modules/onboarding.js';
 import { renderInbox } from './modules/inbox.js';
 import { renderCRM } from './modules/crm.js';
@@ -16,9 +17,19 @@ const VIEWS = {
   settings: renderSettings
 };
 
+function injectIcons(scope = document) {
+  for (const el of scope.querySelectorAll('[data-icon]')) {
+    const name = el.dataset.icon;
+    const size = Number(el.dataset.iconSize || 18);
+    el.innerHTML = icon(name, size);
+  }
+}
+
 async function boot() {
   const status = (await api.status()).data;
-  const hasAnyConnection = status.telegram.connected || status.vk.connected || status.hasTelegramSession || status.hasVkToken;
+  const hasAnyConnection =
+    status.telegram.connected || status.vk.connected ||
+    status.hasTelegramSession || status.hasVkToken;
 
   if (!hasAnyConnection) {
     await renderOnboarding(root, { onEnterApp: enterApp });
@@ -31,17 +42,17 @@ async function enterApp() {
   root.innerHTML = '';
   const shell = tpl('tpl-app-shell');
   root.appendChild(shell);
+  injectIcons(shell);
 
   const host = $('[data-view-host]', shell);
   $$('.nav-item', shell).forEach(btn => {
     btn.addEventListener('click', async () => {
       $$('.nav-item', shell).forEach(b => b.classList.remove('is-active'));
       btn.classList.add('is-active');
-      await VIEWS[btn.dataset.view](host);
+      await VIEWS[btn.dataset.view](host, { injectIcons });
     });
   });
 
-  // Status pills
   const tgPill = $('[data-conn="tg"]', shell);
   const vkPill = $('[data-conn="vk"]', shell);
   const reflect = (pill, on) => pill.classList.toggle('is-connected', !!on);
@@ -51,12 +62,10 @@ async function enterApp() {
   reflect(tgPill, init.telegram.connected);
   reflect(vkPill, init.vk.connected);
 
-  api.on('inbox:newMessage', () => {
-    // could show toast — for now silent (native notif handles UX)
-  });
-
-  await VIEWS.inbox(host);
+  await VIEWS.inbox(host, { injectIcons });
 }
+
+window.__omnidesk_injectIcons = injectIcons;
 
 boot().catch(err => {
   console.error(err);

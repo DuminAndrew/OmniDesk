@@ -3,10 +3,11 @@ import { toast } from '../ui/toast.js';
 
 const api = window.omnidesk;
 
-export async function renderNotes(host) {
+export async function renderNotes(host, { injectIcons }) {
   host.innerHTML = '';
   const view = tpl('tpl-view-notes');
   host.appendChild(view);
+  injectIcons(view);
 
   const sel = bind(view, 'client-filter');
   const clientsRes = await api.clients.list({});
@@ -48,11 +49,10 @@ async function refresh(view, clientId) {
         <span>${escapeHtml(n._clientName || '')}</span>
         <span>${fmtTime(n.updated_at)}</span>
       </div>
-      <div class="row" style="display:flex;gap:8px;margin-top:10px">
-        <button class="btn btn--ghost" data-edit>Изм.</button>
+      <div class="row" style="margin-top:10px">
+        <button class="btn btn--ghost" data-edit>Изменить</button>
         <button class="btn btn--danger" data-del>Удалить</button>
-      </div>
-    `;
+      </div>`;
     card.querySelector('[data-del]').addEventListener('click', async () => {
       await api.notes.remove({ id: n.id });
       toast('Удалено', 'success');

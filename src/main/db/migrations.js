@@ -78,6 +78,25 @@ function applyMigrations(db) {
   if (!columnExists(db, 'chats', 'is_pinned')) {
     db.exec('ALTER TABLE chats ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0');
   }
+
+  // v2 → v3: attachments JSON + reply metadata on messages
+  if (!columnExists(db, 'messages', 'attachments')) {
+    db.exec('ALTER TABLE messages ADD COLUMN attachments TEXT');
+  }
+  if (!columnExists(db, 'messages', 'reply_to_text')) {
+    db.exec('ALTER TABLE messages ADD COLUMN reply_to_text TEXT');
+  }
+  if (!columnExists(db, 'messages', 'reply_to_author')) {
+    db.exec('ALTER TABLE messages ADD COLUMN reply_to_author TEXT');
+  }
+
+  // v3 → v4: Unified contact card columns on clients
+  if (!columnExists(db, 'clients', 'phone'))      db.exec('ALTER TABLE clients ADD COLUMN phone TEXT');
+  if (!columnExists(db, 'clients', 'short_name')) db.exec('ALTER TABLE clients ADD COLUMN short_name TEXT');
+  if (!columnExists(db, 'clients', 'vk_link'))    db.exec('ALTER TABLE clients ADD COLUMN vk_link TEXT');
+  if (!columnExists(db, 'clients', 'tg_link'))    db.exec('ALTER TABLE clients ADD COLUMN tg_link TEXT');
+  if (!columnExists(db, 'clients', 'avatar_url')) db.exec('ALTER TABLE clients ADD COLUMN avatar_url TEXT');
+  if (!columnExists(db, 'clients', 'about'))      db.exec('ALTER TABLE clients ADD COLUMN about TEXT');
 }
 
 module.exports = { applyMigrations };

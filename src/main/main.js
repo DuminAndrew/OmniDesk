@@ -1,5 +1,7 @@
-const { app } = require('electron');
+const { app, protocol, net } = require('electron');
 const path = require('path');
+const fs = require('fs');
+const url = require('url');
 
 const APP_USER_MODEL_ID = 'com.omnidesk.app';
 
@@ -11,6 +13,13 @@ if (!gotLock) {
 }
 
 app.setAppUserModelId(APP_USER_MODEL_ID);
+
+// Privileged custom protocol for serving cached avatars & media to renderer.
+// Registered BEFORE app.whenReady() per Electron docs.
+protocol.registerSchemesAsPrivileged([{
+  scheme: 'omnidesk',
+  privileges: { secure: true, supportFetchAPI: true, stream: true, bypassCSP: false, corsEnabled: true }
+}]);
 
 const logger = require('./utils/logger');
 const { createMainWindow, getMainWindow, showMainWindow } = require('./windows/mainWindow');
@@ -25,6 +34,32 @@ app.on('second-instance', () => {
   showMainWindow();
 });
 
+function registerOmniDeskProtocol() {
+  const paths = require('./utils/paths');
+  // omnidesk://avatars/<file> → cache/avatars/<file>
+  // omnidesk://media/<file>   → cache/media/<file>
+  // omnidesk://voice/<file>   → cache/voice/<file>
+  protocol.handle('omnidesk', async (req) => {
+    try {
+      const u = new URL(req.url);
+      const sub = u.hostname; // avatars | media | voice
+      const file = decodeURIComponent(u.pathname.replace(/^\//, ''));
+      let dir;
+      if (sub === 'avatars')      dir = paths.avatarsDir();
+      else if (sub === 'media')   dir = paths.mediaDir();
+      else if (sub === 'voice')   dir = paths.voiceDir();
+      else return new Response('Bad scope', { status: 400 });
+      const target = path.join(dir, file);
+      if (!target.startsWith(dir)) return new Response('Forbidden', { status: 403 });
+      if (!fs.existsSync(target)) return new Response('Not found', { status: 404 });
+      const fileUrl = url.pathToFileURL(target).href;
+      return net.fetch(fileUrl);
+    } catch (err) {
+      return new Response('Internal: ' + err.message, { status: 500 });
+    }
+  });
+}
+
 app.whenReady().then(async () => {
   try {
     // Ensure DB is initialized before IPC/services touch it
@@ -32,6 +67,8 @@ app.whenReady().then(async () => {
   } catch (err) {
     logger.error('DB init failed', err.message);
   }
+
+  registerOmniDeskProtocol();
 
   createMainWindow();
   buildTray();
@@ -43,6 +80,10 @@ app.whenReady().then(async () => {
     onNewMessage: (payload) => {
       const w = getMainWindow();
       if (w) w.webContents.send('inbox:newMessage', payload);
+    },
+    onAvatarReady: (payload) => {
+      const w = getMainWindow();
+      if (w) w.webContents.send('inbox:avatarReady', payload);
     }
   });
 

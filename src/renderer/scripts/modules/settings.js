@@ -4,10 +4,11 @@ import { openStep } from './onboarding.js';
 
 const api = window.omnidesk;
 
-export async function renderSettings(host) {
+export async function renderSettings(host, { injectIcons }) {
   host.innerHTML = '';
   const view = tpl('tpl-view-settings');
   host.appendChild(view);
+  injectIcons(view);
 
   const refresh = async () => {
     const status = (await api.status()).data;
@@ -15,15 +16,14 @@ export async function renderSettings(host) {
       ? `${status.proxy.type.toUpperCase()} · ${status.proxy.host}:${status.proxy.port}`
       : 'не настроен';
     bind(view, 'tg-current').textContent = status.telegram.connected ? 'подключён ✓' : 'не подключён';
-    bind(view, 'vk-current').textContent = status.vk.connected ? 'подключён ✓' : 'не подключён';
+    bind(view, 'vk-current').textContent = status.vk.connected      ? 'подключён ✓' : 'не подключён';
   };
 
   $('[data-action="proxy"]', view).addEventListener('click', () => openStep('proxy', refresh));
   $('[data-action="tg-connect"]', view).addEventListener('click', () => openStep('telegram', refresh));
   $('[data-action="vk-connect"]', view).addEventListener('click', () => openStep('vk', refresh));
-
   $('[data-action="tg-logout"]', view).addEventListener('click', async () => {
-    if (!confirm('Отключить Telegram? Сессия будет удалена.')) return;
+    if (!confirm('Отключить Telegram?')) return;
     const r = await api.telegram.logout();
     if (r.ok) { toast('Telegram отключён', 'success'); refresh(); }
   });

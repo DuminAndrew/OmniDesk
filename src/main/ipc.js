@@ -75,7 +75,7 @@ function register({ onWebContentsSend }) {
   }));
 
   // ─── Chats / messages ───────────────────────────────────────────────
-  ipcMain.handle('chats:list',     safe(async () => chatsRepo.list()));
+  ipcMain.handle('chats:list',     safe(async (filter) => chatsRepo.list(filter || {})));
   ipcMain.handle('chats:markRead', safe(async ({ id }) => { chatsRepo.markRead(id); return true; }));
   ipcMain.handle('chats:togglePin', safe(async ({ id }) => chatsRepo.togglePin(id)));
   ipcMain.handle('chats:syncDialogs', safe(async () => {
@@ -87,6 +87,30 @@ function register({ onWebContentsSend }) {
   }));
   ipcMain.handle('chats:attachClient', safe(async ({ chatId, clientId }) => chatsRepo.attachClient(chatId, clientId)));
   ipcMain.handle('messages:list',  safe(async ({ chatId }) => messagesRepo.listByChat(chatId)));
+  ipcMain.handle('media:download', safe(async ({ source, externalChatId, msgId, kind, ext }) => {
+    if (source !== 'tg') throw new Error('Only TG media download is implemented');
+    return tg.downloadMedia({ externalChatId, msgId, kind, ext: ext || 'bin' });
+  }));
+  ipcMain.handle('messages:loadHistory', safe(async ({ chatId, limit = 100 }) => {
+    const chat = chatsRepo.get(chatId);
+    if (!chat) throw new Error('Chat not found');
+    let history = [];
+    if (chat.source === 'vk' && vk.status().connected) {
+      history = await vk.loadHistory(chat.external_id, limit);
+    } else if (chat.source === 'tg' && tg.status().connected) {
+      history = await tg.loadHistory(chat.external_id, limit);
+    }
+    for (const h of history) {
+      messagesRepo.addUnique({
+        chat_id: chat.id,
+        external_id: h.externalId,
+        direction: h.direction,
+        body: h.body,
+        ts: h.ts
+      });
+    }
+    return messagesRepo.listByChat(chat.id);
+  }));
 
   // ─── CRM (clients) ──────────────────────────────────────────────────
   ipcMain.handle('clients:list',   safe(async (filter) => clientsRepo.list(filter || {})));
@@ -94,6 +118,22 @@ function register({ onWebContentsSend }) {
   ipcMain.handle('clients:update', safe(async ({ id, ...patch }) => clientsRepo.update(id, patch)));
   ipcMain.handle('clients:remove', safe(async ({ id }) => clientsRepo.remove(id)));
   ipcMain.handle('clients:get',    safe(async ({ id }) => clientsRepo.get(id)));
+  ipcMain.handle('clients:listChats', safe(async ({ id }) => clientsRepo.listChats(id)));
+  ipcMain.handle('clients:createFromChat', safe(async ({ chatId }) => {
+    const chat = chatsRepo.get(chatId);
+    if (!chat) throw new Error('Chat not found');
+    const link = chat.source === 'vk'
+      ? `https://vk.com/id${chat.external_id}`
+      : `https://t.me/${chat.external_id}`;
+    const client = clientsRepo.create({
+      display_name: chat.title || 'Без имени',
+      [chat.source === 'vk' ? 'vk_link' : 'tg_link']: link,
+      avatar_url: chat.avatar_url || null,
+      status: 'new'
+    });
+    chatsRepo.attachClient(chat.id, client.id);
+    return client;
+  }));
 
   // ─── Notes ──────────────────────────────────────────────────────────
   ipcMain.handle('notes:listForClient', safe(async ({ clientId }) => notesRepo.listForClient(clientId)));

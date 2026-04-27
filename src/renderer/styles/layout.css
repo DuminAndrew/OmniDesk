@@ -1,33 +1,26 @@
-/* Onboarding */
+/* ───── Onboarding ─────────────────────────────────────────────── */
 .onboarding {
   height: 100%;
   display: grid;
   place-content: center;
   gap: 28px;
-  background: radial-gradient(ellipse at top left, rgba(0,114,255,.12), transparent 50%),
-              radial-gradient(ellipse at bottom right, rgba(176,106,179,.12), transparent 50%),
-              var(--bg-base);
   padding: 40px;
+  background: var(--grad-bg);
 }
 .onboarding__brand { text-align: center; }
-.onboarding__brand h1 { font-size: 38px; margin-top: 14px; }
-.onboarding__brand .muted { margin-top: 6px; }
-.onboarding__logo { width: 96px; height: 96px; border-radius: 26px; }
-
-.onboarding__steps {
-  display: grid; gap: 14px;
-  width: min(520px, 90vw);
-  margin: 0 auto;
-}
-
+.onboarding__brand h1 { font-size: 42px; margin-top: 14px; letter-spacing: -.02em; font-weight: 700; }
+.onboarding__brand .muted { margin-top: 6px; font-size: 14px; }
+.onboarding__logo { width: 96px; height: 96px; border-radius: 26px; margin: 0 auto; }
+.onboarding__steps { display: grid; gap: 14px; width: min(520px, 90vw); margin: 0 auto; }
 .onboarding__continue { width: min(520px, 90vw); margin: 8px auto 0; }
 
-/* App shell */
+/* ───── Shell ──────────────────────────────────────────────────── */
 .shell {
   display: grid;
-  grid-template-columns: 240px 1fr;
+  grid-template-columns: 244px 1fr;
   height: 100%;
 }
+
 .sidebar {
   background: var(--bg-elevated);
   border-right: 1px solid var(--border);
@@ -36,74 +29,95 @@
   flex-direction: column;
   gap: 18px;
 }
-.sidebar__brand { display: flex; gap: 12px; align-items: center; padding: 0 6px; }
+.sidebar__brand {
+  display: flex; gap: 12px; align-items: center;
+  padding: 4px 6px 14px;
+  border-bottom: 1px solid var(--border);
+}
 .sidebar__logo {
-  width: 42px; height: 42px; border-radius: 12px;
-  background: var(--gradient-tg);
-  display: grid; place-content: center;
-  font-weight: 700; color: white;
+  width: 44px; height: 44px;
+  border-radius: 12px;
+  background: var(--bg-base-2);
+  border: 1px solid var(--border);
+  padding: 4px;
+  flex-shrink: 0;
 }
-.sidebar__title { font-weight: 600; }
-.sidebar__nav { display: flex; flex-direction: column; gap: 4px; }
-.sidebar__status {
-  margin-top: auto;
-  display: flex; flex-direction: column; gap: 8px;
-}
+.sidebar__logo img { width: 100%; height: 100%; }
+.sidebar__title { font-weight: 700; font-size: 15px; letter-spacing: -.01em; }
+.sidebar__sub   { font-size: 11px; color: var(--text-muted); }
+.sidebar__nav   { display: flex; flex-direction: column; gap: 4px; }
+.sidebar__status { margin-top: auto; display: flex; flex-direction: column; gap: 8px; }
 
 .workspace { overflow: hidden; }
 
-/* View: Inbox */
+/* ───── Inbox view ─────────────────────────────────────────────── */
 .view--inbox {
   display: grid;
-  grid-template-columns: 320px 1fr 320px;
+  grid-template-columns: 340px 1fr 360px;
   height: 100%;
 }
-.pane {
-  display: flex; flex-direction: column;
-  border-right: 1px solid var(--border);
-  min-width: 0;
-}
-.pane:last-child { border-right: none; border-left: 1px solid var(--border); }
+
+.pane { display: flex; flex-direction: column; min-width: 0; }
+.pane--chats  { border-right: 1px solid var(--border); }
+.pane--side   { border-left: 1px solid var(--border); }
+
 .pane__head {
-  padding: 18px 18px 12px;
-  display: flex; flex-direction: column; gap: 10px;
+  padding: 16px 18px 12px;
+  display: flex; flex-direction: column; gap: 12px;
   border-bottom: 1px solid var(--border);
 }
-.pane__head h2 { font-size: 18px; }
+.pane__head h2 { font-size: 18px; font-weight: 700; letter-spacing: -.01em; }
+
 .chat-list { overflow-y: auto; flex: 1; }
+
 .thread-empty {
-  display: grid; place-content: center;
-  height: 100%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  height: 100%; gap: 10px;
   color: var(--text-muted);
+  background:
+    radial-gradient(ellipse 50% 40% at 50% 50%, rgba(0,198,255,.05), transparent 60%);
 }
+.thread-empty__icon { font-size: 48px; opacity: .35; }
+
 .thread { display: grid; grid-template-rows: auto 1fr auto; height: 100%; }
 .thread__head {
-  padding: 16px 22px;
+  padding: 14px 22px;
   border-bottom: 1px solid var(--border);
   display: flex; justify-content: space-between; align-items: center;
+  background: var(--bg-glass);
+  backdrop-filter: var(--blur-glass);
 }
-.thread__messages { padding: 22px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+.thread__messages {
+  padding: 22px 28px;
+  overflow-y: auto;
+  display: flex; flex-direction: column; gap: 10px;
+}
 .thread__composer {
   border-top: 1px solid var(--border);
   padding: 14px 18px;
   display: grid; grid-template-columns: 1fr auto; gap: 10px;
+  background: var(--bg-glass);
+  backdrop-filter: var(--blur-glass);
 }
 .thread__composer textarea {
   resize: none; min-height: 56px; max-height: 140px;
-  background: var(--bg-input); border: 1px solid var(--border);
-  border-radius: var(--radius-md); padding: 12px 14px;
 }
+
 .card-stack { padding: 22px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; }
 
-/* View: CRM */
+/* ───── Other views ─────────────────────────────────────────────── */
 .view--crm, .view--notes, .view--settings {
-  padding: 28px 32px; height: 100%; overflow-y: auto;
+  padding: 28px 32px;
+  height: 100%;
+  overflow-y: auto;
 }
-.view__head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
-.filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+.view__head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; gap: 16px; flex-wrap: wrap; }
+.view__head h2 { font-size: 24px; font-weight: 700; letter-spacing: -.01em; }
+.filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 22px; }
+
 .client-grid {
-  display: grid; gap: 14px;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  display: grid; gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
 }
 .notes-grid {
   display: grid; gap: 14px;

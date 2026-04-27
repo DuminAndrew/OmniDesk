@@ -46,16 +46,23 @@ contextBridge.exposeInMainWorld('omnidesk', {
     attachClient: (data) => invoke('chats:attachClient', data)
   },
   messages: {
-    list: (data) => invoke('messages:list', data)
+    list: (data) => invoke('messages:list', data),
+    loadHistory: (data) => invoke('messages:loadHistory', data)
+  },
+
+  media: {
+    download: (data) => invoke('media:download', data)
   },
 
   // ── CRM ───────────────────────────────────────────────────────
   clients: {
-    list:   (filter) => invoke('clients:list', filter),
-    get:    (data) => invoke('clients:get', data),
-    create: (data) => invoke('clients:create', data),
-    update: (data) => invoke('clients:update', data),
-    remove: (data) => invoke('clients:remove', data)
+    list:           (filter) => invoke('clients:list', filter),
+    get:            (data) => invoke('clients:get', data),
+    create:         (data) => invoke('clients:create', data),
+    update:         (data) => invoke('clients:update', data),
+    remove:         (data) => invoke('clients:remove', data),
+    listChats:      (data) => invoke('clients:listChats', data),
+    createFromChat: (data) => invoke('clients:createFromChat', data)
   },
 
   // ── Notes ─────────────────────────────────────────────────────
@@ -81,6 +88,7 @@ contextBridge.exposeInMainWorld('omnidesk', {
   on: (channel, handler) => {
     const allowed = new Set([
       'inbox:newMessage',
+      'inbox:avatarReady',
       'tg:status', 'vk:status',
       'tg:loginEvent'
     ]);

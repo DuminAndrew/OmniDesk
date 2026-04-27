@@ -1,9 +1,14 @@
 const { getDb } = require('../database');
 
-function list() {
-  return getDb()
-    .prepare('SELECT * FROM chats ORDER BY is_pinned DESC, COALESCE(last_ts, 0) DESC')
-    .all();
+function list({ source = null } = {}) {
+  let sql = 'SELECT * FROM chats';
+  const params = {};
+  if (source && source !== 'all') {
+    sql += ' WHERE source = @source';
+    params.source = source;
+  }
+  sql += ' ORDER BY is_pinned DESC, COALESCE(last_ts, 0) DESC';
+  return getDb().prepare(sql).all(params);
 }
 
 function togglePin(id) {
