@@ -1,0 +1,47 @@
+/* OmniDesk design tokens — derived from bentos-next + brand icon palette */
+
+:root {
+  /* Surfaces (bentos dark + icon's gradient) */
+  --bg-base:        #0F1115;
+  --bg-elevated:    #1E2028;
+  --bg-card:        #1a1c24;
+  --bg-card-hover:  #232531;
+  --bg-input:       #15171d;
+
+  /* Text */
+  --text-primary:   #ffffff;
+  --text-muted:     #9f9f9f;
+  --text-subtle:    #6b6f7a;
+
+  /* Brand accents (from OmniDeskIcon.svg) */
+  --tg-blue-1:      #00C6FF;
+  --tg-blue-2:      #0072FF;
+  --vk-purple-1:    #B06AB3;
+  --vk-purple-2:    #4568DC;
+
+  /* Status pill colors */
+  --status-new:        #4568DC;
+  --status-progress:   #eb5d3a;   /* bentos primary */
+  --status-closed:     #2BB673;
+  --status-rejected:   #6b6f7a;
+
+  /* Lines / borders */
+  --border:         rgba(119, 119, 125, .2);
+  --border-strong:  rgba(255, 255, 255, .08);
+
+  /* Shape */
+  --radius-sm:  8px;
+  --radius-md:  14px;
+  --radius-lg:  22px;
+  --radius-xl:  32px;
+
+  /* Effects */
+  --shadow-1: 0 4px 16px rgba(0, 0, 0, .35);
+  --shadow-2: 0 10px 30px rgba(0, 0, 0, .55);
+  --gradient-tg:  linear-gradient(135deg, var(--tg-blue-1), var(--tg-blue-2));
+  --gradient-vk:  linear-gradient(135deg, var(--vk-purple-1), var(--vk-purple-2));
+  --gradient-bg:  linear-gradient(135deg, #1E2028 0%, #0F1115 100%);
+
+  /* Type */
+  --font-base: "Inter", "Poppins", "Segoe UI", -apple-system, system-ui, sans-serif;
+}

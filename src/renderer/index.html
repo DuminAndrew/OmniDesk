@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <title>OmniDesk</title>
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data: blob:; font-src 'self' data:;" />
+  <link rel="stylesheet" href="styles/tokens.css" />
+  <link rel="stylesheet" href="styles/reset.css" />
+  <link rel="stylesheet" href="styles/layout.css" />
+  <link rel="stylesheet" href="styles/components.css" />
+  <link rel="stylesheet" href="styles/animations.css" />
+</head>
+<body>
+  <div id="app"></div>
+
+  <!-- ───── Onboarding screen (shown when no creds) ───── -->
+  <template id="tpl-onboarding">
+    <div class="onboarding">
+      <div class="onboarding__brand">
+        <img src="assets/icon.svg" alt="" class="onboarding__logo" onerror="this.style.display='none'"/>
+        <h1>OmniDesk</h1>
+        <p class="muted">Единый центр для Telegram + ВКонтакте · CRM · Заметки</p>
+      </div>
+
+      <div class="onboarding__steps">
+        <button class="step-card" data-step="proxy">
+          <div class="step-card__icon">🌐</div>
+          <div>
+            <div class="step-card__title">Прокси для Telegram</div>
+            <div class="step-card__sub" data-bind="proxy-status">не настроен</div>
+          </div>
+          <div class="step-card__chevron">›</div>
+        </button>
+
+        <button class="step-card" data-step="telegram">
+          <div class="step-card__icon">✈️</div>
+          <div>
+            <div class="step-card__title">Подключить Telegram</div>
+            <div class="step-card__sub" data-bind="tg-status">не подключён</div>
+          </div>
+          <div class="step-card__chevron">›</div>
+        </button>
+
+        <button class="step-card" data-step="vk">
+          <div class="step-card__icon">🌀</div>
+          <div>
+            <div class="step-card__title">Подключить ВКонтакте</div>
+            <div class="step-card__sub" data-bind="vk-status">не подключён</div>
+          </div>
+          <div class="step-card__chevron">›</div>
+        </button>
+      </div>
+
+      <button class="btn btn--primary onboarding__continue" data-action="enter-app">
+        Перейти в OmniDesk
+      </button>
+    </div>
+  </template>
+
+  <!-- ───── Modal: Proxy ───── -->
+  <template id="tpl-proxy-modal">
+    <div class="modal">
+      <div class="modal__card">
+        <h2>Прокси для Telegram</h2>
+        <p class="muted">Используйте, если Telegram заблокирован у вашего провайдера.<br/>Поддерживаются <b>MTProxy</b> и <b>SOCKS5</b>.</p>
+
+        <label class="field">
+          <span>Тип</span>
+          <select data-field="type">
+            <option value="none">Без прокси</option>
+            <option value="mtproxy">MTProxy</option>
+            <option value="socks5">SOCKS5</option>
+          </select>
+        </label>
+
+        <div class="field-row">
+          <label class="field"><span>Хост</span><input data-field="host" placeholder="proxy.example.com" /></label>
+          <label class="field"><span>Порт</span><input data-field="port" placeholder="443" inputmode="numeric" /></label>
+        </div>
+
+        <label class="field" data-only="mtproxy">
+          <span>Secret (HEX, начинается с ee... или dd...)</span>
+          <input data-field="secret" placeholder="ee0123abcd..." />
+        </label>
+
+        <div class="field-row" data-only="socks5">
+          <label class="field"><span>Логин (опц.)</span><input data-field="username" /></label>
+          <label class="field"><span>Пароль (опц.)</span><input type="password" data-field="password" /></label>
+        </div>
+
+        <div class="modal__actions">
+          <button class="btn btn--ghost" data-action="cancel">Отмена</button>
+          <button class="btn btn--primary" data-action="save">Сохранить</button>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <!-- ───── Modal: Telegram login ───── -->
+  <template id="tpl-tg-modal">
+    <div class="modal">
+      <div class="modal__card">
+        <h2>Подключение Telegram</h2>
+        <p class="muted">
+          Получите <b>API ID</b> и <b>API Hash</b> на
+          <a href="#" data-link="https://my.telegram.org/apps">my.telegram.org/apps</a>
+        </p>
+
+        <div data-stage="creds">
+          <div class="field-row">
+            <label class="field"><span>API ID</span><input data-field="apiId" inputmode="numeric" /></label>
+            <label class="field"><span>API Hash</span><input data-field="apiHash" /></label>
+          </div>
+          <label class="field"><span>Номер телефона</span><input data-field="phone" placeholder="+79001234567" /></label>
+          <div class="modal__actions">
+            <button class="btn btn--ghost" data-action="cancel">Отмена</button>
+            <button class="btn btn--primary" data-action="send-code">Получить код</button>
+          </div>
+        </div>
+
+        <div data-stage="code" hidden>
+          <p class="muted">Код подтверждения отправлен в Telegram-чат «Telegram».</p>
+          <label class="field"><span>Код</span><input data-field="code" inputmode="numeric" /></label>
+          <div class="modal__actions">
+            <button class="btn btn--ghost" data-action="cancel">Отмена</button>
+            <button class="btn btn--primary" data-action="submit-code">Подтвердить</button>
+          </div>
+        </div>
+
+        <div data-stage="password" hidden>
+          <p class="muted">Включена двухфакторная аутентификация. Введите облачный пароль:</p>
+          <label class="field"><span>Пароль 2FA</span><input type="password" data-field="password" /></label>
+          <div class="modal__actions">
+            <button class="btn btn--ghost" data-action="cancel">Отмена</button>
+            <button class="btn btn--primary" data-action="submit-password">Войти</button>
+          </div>
+        </div>
+
+        <div data-stage="status" hidden>
+          <div class="status-msg" data-bind="status-msg"></div>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <!-- ───── Modal: VK login ───── -->
+  <template id="tpl-vk-modal">
+    <div class="modal">
+      <div class="modal__card">
+        <h2>Подключение ВКонтакте</h2>
+        <p class="muted">
+          Получите <b>access_token</b> с правами <code>messages,offline</code> через
+          <a href="#" data-link="https://vkhost.github.io/">vkhost.github.io</a>
+          (Kate Mobile или VK Admin).
+        </p>
+        <label class="field">
+          <span>Access Token</span>
+          <input data-field="token" placeholder="vk1.a..." />
+        </label>
+        <div class="modal__actions">
+          <button class="btn btn--ghost" data-action="cancel">Отмена</button>
+          <button class="btn btn--primary" data-action="save">Подключить</button>
+        </div>
+        <div class="status-msg" data-bind="status-msg"></div>
+      </div>
+    </div>
+  </template>
+
+  <!-- ───── Main app shell ───── -->
+  <template id="tpl-app-shell">
+    <div class="shell">
+      <aside class="sidebar">
+        <div class="sidebar__brand">
+          <div class="sidebar__logo">OD</div>
+          <div>
+            <div class="sidebar__title">OmniDesk</div>
+            <div class="sidebar__sub muted">v1.0.0</div>
+          </div>
+        </div>
+        <nav class="sidebar__nav">
+          <button class="nav-item is-active" data-view="inbox">💬 Инбокс</button>
+          <button class="nav-item" data-view="crm">👥 CRM</button>
+          <button class="nav-item" data-view="notes">📝 Заметки</button>
+          <button class="nav-item" data-view="settings">⚙️ Настройки</button>
+        </nav>
+        <div class="sidebar__status">
+          <div class="conn-pill" data-conn="tg"><span class="dot"></span>Telegram</div>
+          <div class="conn-pill" data-conn="vk"><span class="dot"></span>VK</div>
+        </div>
+      </aside>
+
+      <main class="workspace" data-view-host></main>
+    </div>
+  </template>
+
+  <!-- ───── View: Inbox ───── -->
+  <template id="tpl-view-inbox">
+    <section class="view view--inbox">
+      <div class="pane pane--chats">
+        <div class="pane__head">
+          <h2>Диалоги</h2>
+          <input class="search" placeholder="Поиск…" data-bind="search"/>
+        </div>
+        <div class="chat-list" data-bind="chat-list"></div>
+      </div>
+      <div class="pane pane--thread">
+        <div class="thread-empty" data-bind="thread-empty">Выберите диалог слева</div>
+        <div class="thread" data-bind="thread" hidden>
+          <header class="thread__head">
+            <div class="thread__title" data-bind="thread-title"></div>
+            <div class="thread__source" data-bind="thread-source"></div>
+          </header>
+          <div class="thread__messages" data-bind="thread-messages"></div>
+          <footer class="thread__composer">
+            <textarea data-bind="composer" placeholder="Написать сообщение…"></textarea>
+            <button class="btn btn--primary" data-action="send">Отправить</button>
+          </footer>
+        </div>
+      </div>
+      <div class="pane pane--side">
+        <div class="pane__head"><h2>Карточка</h2></div>
+        <div class="card-stack" data-bind="side-panel">
+          <div class="muted small">Откройте диалог, чтобы увидеть данные клиента, теги и заметки.</div>
+        </div>
+      </div>
+    </section>
+  </template>
+
+  <!-- ───── View: CRM ───── -->
+  <template id="tpl-view-crm">
+    <section class="view view--crm">
+      <div class="view__head">
+        <h2>Клиенты</h2>
+        <button class="btn btn--primary" data-action="new-client">+ Новый клиент</button>
+      </div>
+      <div class="filters">
+        <button class="filter is-active" data-status="">Все</button>
+        <button class="filter" data-status="new">Новые</button>
+        <button class="filter" data-status="in_progress">В работе</button>
+        <button class="filter" data-status="closed">Закрытые</button>
+        <button class="filter" data-status="rejected">Отказы</button>
+      </div>
+      <div class="client-grid" data-bind="client-grid"></div>
+    </section>
+  </template>
+
+  <!-- ───── View: Notes ───── -->
+  <template id="tpl-view-notes">
+    <section class="view view--notes">
+      <div class="view__head">
+        <h2>Заметки</h2>
+        <select data-bind="client-filter"><option value="">Все клиенты</option></select>
+      </div>
+      <div class="notes-grid" data-bind="notes-grid"></div>
+    </section>
+  </template>
+
+  <!-- ───── View: Settings ───── -->
+  <template id="tpl-view-settings">
+    <section class="view view--settings">
+      <div class="view__head"><h2>Настройки</h2></div>
+      <div class="settings-grid">
+        <div class="settings-card">
+          <h3>🌐 Прокси Telegram</h3>
+          <div class="muted" data-bind="proxy-current">не настроен</div>
+          <button class="btn btn--ghost" data-action="proxy">Настроить</button>
+        </div>
+        <div class="settings-card">
+          <h3>✈️ Telegram</h3>
+          <div class="muted" data-bind="tg-current">не подключён</div>
+          <div class="row">
+            <button class="btn btn--ghost" data-action="tg-connect">Подключить</button>
+            <button class="btn btn--danger" data-action="tg-logout">Отключить</button>
+          </div>
+        </div>
+        <div class="settings-card">
+          <h3>🌀 ВКонтакте</h3>
+          <div class="muted" data-bind="vk-current">не подключён</div>
+          <div class="row">
+            <button class="btn btn--ghost" data-action="vk-connect">Подключить</button>
+            <button class="btn btn--danger" data-action="vk-logout">Отключить</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </template>
+
+  <!-- ───── Toast container ───── -->
+  <div id="toasts" class="toasts"></div>
+
+  <script type="module" src="scripts/app.js"></script>
+</body>
+</html>

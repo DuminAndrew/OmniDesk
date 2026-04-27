@@ -1,0 +1,32 @@
+{
+  "name": "omnidesk",
+  "version": "1.0.0",
+  "description": "OmniDesk — Windows-агрегатор Telegram и ВКонтакте со встроенной мини-CRM и заметками",
+  "author": {
+    "name": "OmniDesk",
+    "email": "support@omnidesk.app"
+  },
+  "license": "MIT",
+  "main": "src/main/main.js",
+  "scripts": {
+    "start": "electron .",
+    "rebuild": "electron-rebuild -f -w better-sqlite3",
+    "fetch-prebuilds": "node scripts/fetch-prebuilds.js",
+    "build:icon": "node scripts/build-icon.js",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder --win --x64",
+    "dist:portable": "electron-builder --win portable --x64"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.3.0",
+    "telegram": "^2.26.16",
+    "vk-io": "^4.9.0"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^3.7.0",
+    "electron": "^31.7.2",
+    "electron-builder": "^25.1.8",
+    "png-to-ico": "^2.1.8",
+    "sharp": "^0.33.5"
+  }
+}

@@ -1,0 +1,23 @@
+node_modules/
+dist/
+out/
+release/
+
+# Local secrets / runtime data
+*.session
+*.token
+*.sqlite
+*.sqlite-journal
+*.log
+logs/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+build/icon-cache/
+*.exe
+!build/installerHeader.bmp

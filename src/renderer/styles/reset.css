@@ -1,0 +1,37 @@
+*, *::before, *::after { box-sizing: border-box; }
+* { margin: 0; padding: 0; }
+
+html, body, #app { height: 100%; }
+
+body {
+  font-family: var(--font-base);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  background: var(--bg-base);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  overflow: hidden;
+}
+
+input, textarea, select, button {
+  font: inherit;
+  color: inherit;
+}
+
+button { background: none; border: none; cursor: pointer; }
+
+a { color: var(--tg-blue-1); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,.08);
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.15); }
+
+.muted { color: var(--text-muted); }
+.small { font-size: 12px; }
+[hidden] { display: none !important; }

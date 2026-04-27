@@ -1,0 +1,115 @@
+/* Onboarding */
+.onboarding {
+  height: 100%;
+  display: grid;
+  place-content: center;
+  gap: 28px;
+  background: radial-gradient(ellipse at top left, rgba(0,114,255,.12), transparent 50%),
+              radial-gradient(ellipse at bottom right, rgba(176,106,179,.12), transparent 50%),
+              var(--bg-base);
+  padding: 40px;
+}
+.onboarding__brand { text-align: center; }
+.onboarding__brand h1 { font-size: 38px; margin-top: 14px; }
+.onboarding__brand .muted { margin-top: 6px; }
+.onboarding__logo { width: 96px; height: 96px; border-radius: 26px; }
+
+.onboarding__steps {
+  display: grid; gap: 14px;
+  width: min(520px, 90vw);
+  margin: 0 auto;
+}
+
+.onboarding__continue { width: min(520px, 90vw); margin: 8px auto 0; }
+
+/* App shell */
+.shell {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  height: 100%;
+}
+.sidebar {
+  background: var(--bg-elevated);
+  border-right: 1px solid var(--border);
+  padding: 22px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.sidebar__brand { display: flex; gap: 12px; align-items: center; padding: 0 6px; }
+.sidebar__logo {
+  width: 42px; height: 42px; border-radius: 12px;
+  background: var(--gradient-tg);
+  display: grid; place-content: center;
+  font-weight: 700; color: white;
+}
+.sidebar__title { font-weight: 600; }
+.sidebar__nav { display: flex; flex-direction: column; gap: 4px; }
+.sidebar__status {
+  margin-top: auto;
+  display: flex; flex-direction: column; gap: 8px;
+}
+
+.workspace { overflow: hidden; }
+
+/* View: Inbox */
+.view--inbox {
+  display: grid;
+  grid-template-columns: 320px 1fr 320px;
+  height: 100%;
+}
+.pane {
+  display: flex; flex-direction: column;
+  border-right: 1px solid var(--border);
+  min-width: 0;
+}
+.pane:last-child { border-right: none; border-left: 1px solid var(--border); }
+.pane__head {
+  padding: 18px 18px 12px;
+  display: flex; flex-direction: column; gap: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.pane__head h2 { font-size: 18px; }
+.chat-list { overflow-y: auto; flex: 1; }
+.thread-empty {
+  display: grid; place-content: center;
+  height: 100%;
+  color: var(--text-muted);
+}
+.thread { display: grid; grid-template-rows: auto 1fr auto; height: 100%; }
+.thread__head {
+  padding: 16px 22px;
+  border-bottom: 1px solid var(--border);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.thread__messages { padding: 22px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+.thread__composer {
+  border-top: 1px solid var(--border);
+  padding: 14px 18px;
+  display: grid; grid-template-columns: 1fr auto; gap: 10px;
+}
+.thread__composer textarea {
+  resize: none; min-height: 56px; max-height: 140px;
+  background: var(--bg-input); border: 1px solid var(--border);
+  border-radius: var(--radius-md); padding: 12px 14px;
+}
+.card-stack { padding: 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+
+/* View: CRM */
+.view--crm, .view--notes, .view--settings {
+  padding: 28px 32px; height: 100%; overflow-y: auto;
+}
+.view__head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+.filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+.client-grid {
+  display: grid; gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+.notes-grid {
+  display: grid; gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+.settings-grid {
+  display: grid; gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+}

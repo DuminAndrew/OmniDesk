@@ -1,0 +1,44 @@
+appId: com.omnidesk.app
+productName: OmniDesk
+copyright: "Copyright © 2026 OmniDesk"
+
+directories:
+  output: dist
+  buildResources: build
+
+files:
+  - src/**/*
+  - package.json
+  - "!**/*.map"
+  - "!node_modules/bufferutil/build/**"
+  - "!node_modules/utf-8-validate/build/**"
+
+# better-sqlite3 prebuilt for Electron is already in place; skip rebuild
+npmRebuild: false
+
+asarUnpack:
+  - node_modules/better-sqlite3/**
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: build/icon.ico
+  artifactName: "OmniDesk Setup ${version}.${ext}"
+  publisherName: OmniDesk
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: OmniDesk
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  installerHeaderIcon: build/icon.ico
+  deleteAppDataOnUninstall: false
+
+extraMetadata:
+  main: src/main/main.js
