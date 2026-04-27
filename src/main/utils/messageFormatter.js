@@ -62,19 +62,21 @@ function extractVkAttachments(att) {
           duration: a.audio?.duration || 0
         });
         break;
-      case 'video':
+      case 'video': {
+        const v = a.video;
+        const oid = v?.owner_id, vid = v?.id, key = v?.access_key;
         out.push({
           kind: 'video',
-          previewUrl: pickPreviewVkPhoto({ sizes: a.video?.image }),
-          title: a.video?.title || '',
-          duration: a.video?.duration || 0,
-          // VK locked direct mp4 URLs in 2022; we open the canonical web page
-          // in the in-app browser when the user clicks the placeholder.
-          vkUrl: a.video
-            ? `https://vk.com/video${a.video.owner_id}_${a.video.id}${a.video.access_key ? '?list=' + a.video.access_key : ''}`
-            : null
+          previewUrl: pickPreviewVkPhoto({ sizes: v?.image }),
+          title: v?.title || '',
+          duration: v?.duration || 0,
+          // VK locked direct mp4 in 2022 — we embed their iframe player
+          // inside an in-app modal instead of opening the system browser.
+          vkUrl: v ? `https://vk.com/video${oid}_${vid}${key ? '?list=' + key : ''}` : null,
+          vkEmbedUrl: v ? `https://vk.com/video_ext.php?oid=${oid}&id=${vid}${key ? '&hash=' + key : ''}&hd=2` : null
         });
         break;
+      }
       case 'sticker':
         out.push({
           kind: 'sticker',

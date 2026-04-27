@@ -321,22 +321,19 @@ function renderAttachment(a, chat, msg) {
         <div class="muted small" style="margin-top:4px">Нажмите для воспроизведения</div>
       </div>`;
       div.querySelector('.media-video').addEventListener('click', async () => {
-        // Telegram → download mp4 and play inline
+        // Telegram → download mp4 and play in lightbox
         if (a.tgRef && chat.source === 'tg' && msg.external_id) {
           try {
-            toast('Скачиваем видео…', 'info');
+            toast('Скачиваем видео…', 'info', 1500);
             const r = await api.media.download({ source: 'tg', externalChatId: chat.external_id, msgId: msg.external_id, kind: a.round ? 'round' : 'video', ext: 'mp4' });
-            if (r.ok && r.data) {
-              div.innerHTML = `<video controls autoplay style="max-width:320px;border-radius:12px"><source src="${r.data}" type="video/mp4"></video>`;
-            } else {
-              toast('Не удалось скачать: ' + (r?.error || 'нет данных'), 'error');
-            }
+            if (r.ok && r.data) openVideoLightbox({ src: r.data, type: 'mp4' });
+            else toast('Не удалось скачать: ' + (r?.error || 'нет данных'), 'error');
           } catch (e) { toast(e.message, 'error'); }
           return;
         }
-        // VK videos can't be played inline (locked); open vk.com page
-        if (chat.source === 'vk' && a.vkUrl) {
-          api.openExternal(a.vkUrl);
+        // VK videos: embed vk.com player inside our own lightbox iframe
+        if (chat.source === 'vk' && a.vkEmbedUrl) {
+          openVideoLightbox({ src: a.vkEmbedUrl, type: 'iframe' });
           return;
         }
         toast('Воспроизведение недоступно', 'error');
@@ -409,18 +406,34 @@ function renderAttachment(a, chat, msg) {
 }
 
 function openLightbox(url) {
+  openLightboxRaw(`<img src="${escapeHtml(url)}" alt=""/>`);
+}
+
+function openVideoLightbox({ src, type }) {
+  if (type === 'iframe') {
+    openLightboxRaw(
+      `<iframe src="${escapeHtml(src)}" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>`
+    );
+  } else {
+    openLightboxRaw(
+      `<video src="${escapeHtml(src)}" controls autoplay></video>`
+    );
+  }
+}
+
+function openLightboxRaw(innerHtml) {
   document.querySelectorAll('.lightbox').forEach(el => el.remove());
   const lb = document.createElement('div');
   lb.className = 'lightbox';
-  lb.innerHTML = `
-    <button class="lightbox__close" data-close>${icon('x', 18)}</button>
-    <img src="${escapeHtml(url)}" alt=""/>`;
+  lb.innerHTML = `<button class="lightbox__close" data-close>${icon('x', 18)}</button>${innerHtml}`;
   document.body.appendChild(lb);
   const close = () => lb.remove();
   lb.addEventListener('click', (e) => {
     if (e.target === lb || e.target.closest('[data-close]')) close();
   });
-  lb.querySelector('img').addEventListener('click', (e) => e.stopPropagation());
+  lb.querySelectorAll('img, video, iframe').forEach(el =>
+    el.addEventListener('click', (e) => e.stopPropagation())
+  );
   document.addEventListener('keydown', function esc(e) {
     if (e.key === 'Escape') { close(); document.removeEventListener('keydown', esc); }
   });

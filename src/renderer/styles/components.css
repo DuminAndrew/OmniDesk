@@ -447,7 +447,7 @@ select option { background: var(--bg-elevated); color: var(--text-primary); }
 }
 .media-photo:hover { transform: scale(1.01); }
 
-/* In-app image lightbox */
+/* In-app image / video lightbox */
 .lightbox {
   position: fixed; inset: 0;
   background: rgba(0,0,0,.92);
@@ -456,9 +456,20 @@ select option { background: var(--bg-elevated); color: var(--text-primary); }
   cursor: zoom-out;
   animation: fadeIn .15s var(--ease);
 }
-.lightbox img {
+.lightbox img,
+.lightbox video {
   max-width: 92vw; max-height: 92vh;
   border-radius: var(--r-md);
+  box-shadow: var(--shadow-lg);
+  cursor: default;
+  background: black;
+}
+.lightbox iframe {
+  width: min(1200px, 92vw);
+  height: min(700px, 84vh);
+  border: 0;
+  border-radius: var(--r-md);
+  background: black;
   box-shadow: var(--shadow-lg);
   cursor: default;
 }
