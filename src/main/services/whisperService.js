@@ -25,9 +25,14 @@ function legacyBin() { return path.join(dir(), 'main.exe'); }
 function modelPath() { return path.join(dir(), 'ggml-base.bin'); }
 
 function existingBinary() {
-  if (fs.existsSync(binPath()))    return binPath();
-  if (fs.existsSync(legacyBin()))  return legacyBin();
+  // Always prefer whisper-cli.exe — modern releases ship main.exe as a
+  // deprecation stub that exits 1.
+  if (fs.existsSync(binPath()))   return binPath();
   return null;
+}
+
+function hasLegacyOnly() {
+  return !fs.existsSync(binPath()) && fs.existsSync(legacyBin());
 }
 
 function status() {
@@ -123,31 +128,46 @@ async function downloadModel(onProgress) {
 }
 
 async function downloadBinary(onProgress) {
+  // Already have the modern CLI? Done.
   if (existingBinary()) return { ok: true, alreadyPresent: true, path: existingBinary() };
-  const { url: BINARY_URL, name } = await discoverWindowsBinary();
+
+  // If only the deprecated stub main.exe is present, remove it so we don't
+  // accidentally fall back to it later.
+  if (hasLegacyOnly()) {
+    try { fs.unlinkSync(legacyBin()); logger.info('Whisper: removed deprecated main.exe stub'); } catch (_) {}
+  }
+
+  const { url: BINARY_URL } = await discoverWindowsBinary();
   logger.info('Whisper: downloading binary…', BINARY_URL);
   const zipFile = path.join(dir(), 'whisper-bin.zip');
   await downloadStream(BINARY_URL, zipFile, onProgress);
 
   const zip = new AdmZip(zipFile);
   const entries = zip.getEntries();
-  // Look for whisper-cli.exe (modern) or main.exe (legacy)
-  const target = entries.find(e => /(?:^|[\\/])(whisper-cli|main)\.exe$/i.test(e.entryName));
+  // STRONGLY prefer whisper-cli.exe; only fall back to main.exe if absent.
+  const cli  = entries.find(e => /(?:^|[\\/])whisper-cli\.exe$/i.test(e.entryName));
+  const main = entries.find(e => /(?:^|[\\/])main\.exe$/i.test(e.entryName));
+  const target = cli || main;
   if (!target) {
-    fs.unlinkSync(zipFile);
-    throw new Error('main.exe / whisper-cli.exe не найден в архиве');
+    try { fs.unlinkSync(zipFile); } catch (_) {}
+    throw new Error('whisper-cli.exe / main.exe не найден в архиве');
   }
-  const wantedName = /whisper-cli/i.test(target.entryName) ? 'whisper-cli.exe' : 'main.exe';
+  const wantedName = cli ? 'whisper-cli.exe' : 'main.exe';
   const outFile = path.join(dir(), wantedName);
   fs.writeFileSync(outFile, target.getData());
+  logger.info('Whisper: extracted', wantedName);
 
-  // Also extract any DLLs we'll need at runtime (whisper.dll, ggml*.dll, …)
+  // All DLLs we'll need at runtime (whisper.dll, ggml*.dll, OpenBLAS, etc.)
+  let dllCount = 0;
   for (const e of entries) {
     if (/\.dll$/i.test(e.entryName)) {
       const name = path.basename(e.entryName);
       fs.writeFileSync(path.join(dir(), name), e.getData());
+      dllCount++;
     }
   }
+  logger.info('Whisper: extracted', dllCount, 'DLLs');
+
   try { fs.unlinkSync(zipFile); } catch (_) {}
   return { ok: true, path: outFile };
 }

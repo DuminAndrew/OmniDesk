@@ -207,9 +207,11 @@ function register({ onWebContentsSend, mainWindow }) {
     const onProgressBin = (received, total) => send('whisper:progress', {
       stage: 'binary', received, total
     });
-    // Binary first (small ~10 MB), then big model (~147 MB)
-    if (!whisper.status().binaryReady) await whisper.downloadBinary(onProgressBin);
-    if (!whisper.status().modelReady)  await whisper.downloadModel(onProgress);
+    // Always run downloadBinary — internally it skips if whisper-cli.exe
+    // already exists, but DOES delete the deprecated main.exe stub from
+    // earlier installs and re-download the proper binary.
+    await whisper.downloadBinary(onProgressBin);
+    if (!whisper.status().modelReady) await whisper.downloadModel(onProgress);
     send('whisper:progress', { stage: 'done' });
     return whisper.status();
   }));
