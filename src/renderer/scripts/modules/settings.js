@@ -4,6 +4,8 @@ import { openStep } from './onboarding.js';
 
 const api = window.omnidesk;
 
+function fmtMb(bytes) { return (bytes / 1024 / 1024).toFixed(1) + ' MB'; }
+
 export async function renderSettings(host, { injectIcons }) {
   host.innerHTML = '';
   const view = tpl('tpl-view-settings');
@@ -33,5 +35,100 @@ export async function renderSettings(host, { injectIcons }) {
     if (r.ok) { toast('VK отключён', 'success'); refresh(); }
   });
 
+  // Whisper install + status
+  const refreshWhisper = async () => {
+    const s = (await api.whisper.status()).data || {};
+    const label = bind(view, 'whisper-status');
+    const btn   = $('[data-action="whisper-install"]', view);
+    if (s.binaryReady && s.modelReady) {
+      label.textContent = `✓ установлено (модель ${s.modelSizeMb} MB)`;
+      btn.textContent = 'Переустановить';
+      btn.classList.remove('btn--primary');
+      btn.classList.add('btn--ghost');
+    } else {
+      const need = [];
+      if (!s.binaryReady) need.push('CLI');
+      if (!s.modelReady)  need.push('модель');
+      label.textContent = `не установлено (нужны: ${need.join(', ')})`;
+    }
+  };
+  refreshWhisper();
+
+  $('[data-action="whisper-install"]', view).addEventListener('click', async () => {
+    const wrap = bind(view, 'whisper-progress-wrap');
+    const lbl  = bind(view, 'whisper-progress-label');
+    const bar  = bind(view, 'whisper-progress-bar');
+    wrap.hidden = false;
+    lbl.textContent = 'Подготовка…';
+
+    const off = api.on('whisper:progress', (p) => {
+      if (p.stage === 'binary') {
+        const pct = p.total ? Math.round(p.received / p.total * 100) : 0;
+        lbl.textContent = `Скачивание whisper.cpp · ${fmtMb(p.received)} / ${p.total ? fmtMb(p.total) : '?'} (${pct}%)`;
+        bar.style.width = pct + '%';
+      } else if (p.stage === 'model') {
+        const pct = p.total ? Math.round(p.received / p.total * 100) : 0;
+        lbl.textContent = `Скачивание модели ggml-base · ${fmtMb(p.received)} / ${p.total ? fmtMb(p.total) : '?'} (${pct}%)`;
+        bar.style.width = pct + '%';
+      } else if (p.stage === 'done') {
+        lbl.textContent = '✓ Готово';
+        bar.style.width = '100%';
+      }
+    });
+
+    try {
+      const r = await api.whisper.downloadModel();
+      if (!r.ok) throw new Error(r.error);
+      toast('Whisper установлен', 'success');
+      setTimeout(() => { wrap.hidden = true; refreshWhisper(); off && off(); }, 1200);
+    } catch (e) {
+      toast('Ошибка установки: ' + e.message, 'error');
+      lbl.textContent = 'Ошибка: ' + e.message;
+    }
+  });
+
+  // Wallpaper picker
+  renderWallpapers(view);
+
   await refresh();
+}
+
+const WALLPAPERS = [
+  { id: 'default',  label: 'По умолчанию', preview: 'linear-gradient(135deg, #11141B 0%, #0B0D12 100%)' },
+  { id: 'black',    label: 'Чёрный',       preview: '#000' },
+  { id: 'graphite', label: 'Графит',       preview: '#1a1d24' },
+  { id: 'midnight', label: 'Полночь',      preview: 'linear-gradient(135deg, #1a2050 0%, #08082a 100%)' },
+  { id: 'ocean',    label: 'Океан',        preview: 'linear-gradient(135deg, #0a3d5c 0%, #062f4a 100%)' },
+  { id: 'dusk',     label: 'Сумерки',      preview: 'linear-gradient(135deg, #2a1a3a 0%, #1a0e2a 100%)' },
+  { id: 'paper',    label: 'Бумага',       preview: '#ECEDEF' },
+  { id: 'warm',     label: 'Тёплый',       preview: '#F4ECE0' }
+];
+
+function applyWallpaper(id) {
+  document.documentElement.dataset.wallpaper = id;
+  localStorage.setItem('omnidesk:wallpaper', id);
+}
+
+export function initWallpaper() {
+  const saved = localStorage.getItem('omnidesk:wallpaper') || 'default';
+  applyWallpaper(saved);
+}
+
+function renderWallpapers(view) {
+  const grid = bind(view, 'wallpaper-grid');
+  if (!grid) return;
+  const current = localStorage.getItem('omnidesk:wallpaper') || 'default';
+  for (const w of WALLPAPERS) {
+    const tile = document.createElement('div');
+    tile.className = 'wallpaper-tile' + (w.id === current ? ' is-active' : '');
+    tile.style.background = w.preview;
+    tile.title = w.label;
+    tile.addEventListener('click', () => {
+      applyWallpaper(w.id);
+      grid.querySelectorAll('.wallpaper-tile').forEach(t => t.classList.remove('is-active'));
+      tile.classList.add('is-active');
+      toast('Фон: ' + w.label, 'success', 1500);
+    });
+    grid.appendChild(tile);
+  }
 }

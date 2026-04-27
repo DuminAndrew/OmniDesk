@@ -270,7 +270,7 @@ function renderAttachment(a, chat, msg) {
       if (a.url) {
         div.innerHTML = `<img class="media-photo" src="${escapeHtml(a.url)}" loading="lazy" alt=""/>`;
         const img = div.querySelector('img');
-        img.addEventListener('click', () => window.omnidesk.openExternal(a.fullUrl || a.url));
+        img.addEventListener('click', () => openLightbox(a.fullUrl || a.url));
         img.addEventListener('error', () => {
           if (a.tgRef && chat.source === 'tg') downloadAndSwap(img, chat, msg, 'photo', 'jpg');
           else img.replaceWith(textPlaceholder('📷 Фото недоступно'));
@@ -282,6 +282,7 @@ function renderAttachment(a, chat, msg) {
             const r = await api.media.download({ source: 'tg', externalChatId: chat.external_id, msgId: msg.external_id, kind: 'photo', ext: 'jpg' });
             if (r.ok && r.data) {
               div.innerHTML = `<img class="media-photo" src="${r.data}" alt=""/>`;
+              div.querySelector('img').addEventListener('click', () => openLightbox(r.data));
             }
           } catch (e) { toast(e.message, 'error'); }
         });
@@ -291,7 +292,7 @@ function renderAttachment(a, chat, msg) {
       return div;
     }
     case 'voice': {
-      div.innerHTML = renderVoicePlayer(a);
+      div.innerHTML = renderVoicePlayer(a, msg);
       bindVoicePlayer(div, a, chat, msg);
       return div;
     }
@@ -370,6 +371,24 @@ function renderAttachment(a, chat, msg) {
   }
 }
 
+function openLightbox(url) {
+  document.querySelectorAll('.lightbox').forEach(el => el.remove());
+  const lb = document.createElement('div');
+  lb.className = 'lightbox';
+  lb.innerHTML = `
+    <button class="lightbox__close" data-close>${icon('x', 18)}</button>
+    <img src="${escapeHtml(url)}" alt=""/>`;
+  document.body.appendChild(lb);
+  const close = () => lb.remove();
+  lb.addEventListener('click', (e) => {
+    if (e.target === lb || e.target.closest('[data-close]')) close();
+  });
+  lb.querySelector('img').addEventListener('click', (e) => e.stopPropagation());
+  document.addEventListener('keydown', function esc(e) {
+    if (e.key === 'Escape') { close(); document.removeEventListener('keydown', esc); }
+  });
+}
+
 function textPlaceholder(text) {
   const d = document.createElement('div');
   d.style.fontStyle = 'italic';
@@ -397,42 +416,147 @@ function humanSize(bytes) {
   return (bytes / 1024 / 1024 / 1024).toFixed(1) + ' GB';
 }
 
-function renderVoicePlayer(a) {
+function renderVoicePlayer(a, msg) {
   return `
     <div class="media-voice">
       <button class="media-voice__btn" data-play>${icon('play', 14) || '▶'}</button>
       <div class="media-voice__bar"><div class="media-voice__progress"></div></div>
       <div class="media-voice__time">${fmtDur(a.duration || 0)}</div>
-    </div>`;
+      <button class="media-voice__transcribe" data-transcribe title="Расшифровать">${icon('mic', 14)}</button>
+    </div>
+    ${msg.transcript ? `<div class="media-voice__transcript">
+      <span class="media-voice__transcript-label">Расшифровка</span>${escapeHtml(msg.transcript)}
+    </div>` : ''}`;
+}
+
+async function ensureVoiceUrl(a, chat, msg) {
+  if (a.url) return a.url;
+  if (a.tgRef && chat.source === 'tg') {
+    const r = await api.media.download({
+      source: 'tg', externalChatId: chat.external_id, msgId: msg.external_id, kind: 'voice', ext: 'ogg'
+    });
+    if (r.ok && r.data) return r.data;
+    throw new Error(r.error || 'Не удалось скачать голосовое');
+  }
+  throw new Error('Источник голосового неизвестен');
 }
 
 function bindVoicePlayer(scope, a, chat, msg) {
   const btn = scope.querySelector('[data-play]');
+  const transcribeBtn = scope.querySelector('[data-transcribe]');
   const progress = scope.querySelector('.media-voice__progress');
   const time = scope.querySelector('.media-voice__time');
   let audio = null;
 
   btn.addEventListener('click', async () => {
     if (!audio) {
-      let src = a.url;
-      if (!src && a.tgRef && chat.source === 'tg') {
-        try {
-          btn.textContent = '…';
-          const r = await api.media.download({ source: 'tg', externalChatId: chat.external_id, msgId: msg.external_id, kind: 'voice', ext: 'ogg' });
-          if (r.ok && r.data) src = r.data;
-        } catch (e) { toast(e.message, 'error'); btn.textContent = '▶'; return; }
-      }
-      if (!src) return;
-      audio = new Audio(src);
-      audio.addEventListener('timeupdate', () => {
-        if (audio.duration) progress.style.width = (audio.currentTime / audio.duration * 100) + '%';
-        time.textContent = fmtDur(audio.currentTime);
-      });
-      audio.addEventListener('ended', () => { btn.textContent = '▶'; progress.style.width = '0%'; time.textContent = fmtDur(a.duration || 0); });
+      try {
+        btn.innerHTML = icon('pause', 12);
+        const src = await ensureVoiceUrl(a, chat, msg);
+        audio = new Audio(src);
+        audio.addEventListener('timeupdate', () => {
+          if (audio.duration) progress.style.width = (audio.currentTime / audio.duration * 100) + '%';
+          time.textContent = fmtDur(audio.currentTime);
+        });
+        audio.addEventListener('ended', () => { btn.innerHTML = icon('play', 14); progress.style.width = '0%'; time.textContent = fmtDur(a.duration || 0); });
+        audio.play();
+      } catch (e) { toast('Не удалось воспроизвести: ' + e.message, 'error'); btn.innerHTML = icon('play', 14); }
+      return;
     }
-    if (audio.paused) { audio.play(); btn.textContent = '❚❚'; }
-    else { audio.pause(); btn.textContent = '▶'; }
+    if (audio.paused) { audio.play(); btn.innerHTML = icon('pause', 12); }
+    else              { audio.pause(); btn.innerHTML = icon('play', 14); }
   });
+
+  if (transcribeBtn) {
+    transcribeBtn.addEventListener('click', async () => {
+      const w = (await api.whisper.status()).data || {};
+      if (!w.binaryReady || !w.modelReady) {
+        toast('Сначала установите Whisper в Настройках', 'error');
+        return;
+      }
+      transcribeBtn.classList.add('is-loading');
+      try {
+        const url = await ensureVoiceUrl(a, chat, msg);
+        const wavBuffer = await audioUrlToWav16k(url);
+        const r = await api.whisper.transcribe({
+          wavBuffer, language: 'ru', messageId: msg.id
+        });
+        if (!r.ok) throw new Error(r.error);
+        // Inject transcript block under the player
+        const existing = scope.querySelector('.media-voice__transcript');
+        const html = `<span class="media-voice__transcript-label">Расшифровка</span>${escapeHtml(r.data.text || '[пусто]')}`;
+        if (existing) existing.innerHTML = html;
+        else {
+          const div = document.createElement('div');
+          div.className = 'media-voice__transcript';
+          div.innerHTML = html;
+          scope.appendChild(div);
+        }
+        toast('Готово', 'success');
+      } catch (e) {
+        toast('Ошибка расшифровки: ' + e.message, 'error');
+      } finally {
+        transcribeBtn.classList.remove('is-loading');
+      }
+    });
+  }
+}
+
+/**
+ * Decode audio at any URL → resample to 16 kHz mono → encode 16-bit PCM WAV.
+ * Returns ArrayBuffer ready for the Whisper CLI.
+ */
+async function audioUrlToWav16k(url) {
+  const ab = await fetch(url).then(r => r.arrayBuffer());
+  const decoded = await new AudioContext().decodeAudioData(ab.slice(0));
+  // Resample to 16k mono via OfflineAudioContext
+  const targetRate = 16000;
+  const length = Math.ceil(decoded.duration * targetRate);
+  const offline = new OfflineAudioContext(1, length, targetRate);
+  const src = offline.createBufferSource();
+  // Mix down to mono if needed
+  if (decoded.numberOfChannels === 1) {
+    src.buffer = decoded;
+  } else {
+    const monoBuf = offline.createBuffer(1, decoded.length, decoded.sampleRate);
+    const out = monoBuf.getChannelData(0);
+    for (let ch = 0; ch < decoded.numberOfChannels; ch++) {
+      const data = decoded.getChannelData(ch);
+      for (let i = 0; i < data.length; i++) out[i] += data[i] / decoded.numberOfChannels;
+    }
+    src.buffer = monoBuf;
+  }
+  src.connect(offline.destination);
+  src.start(0);
+  const rendered = await offline.startRendering();
+  return encodeWav(rendered.getChannelData(0), targetRate);
+}
+
+function encodeWav(pcm, sampleRate) {
+  const n = pcm.length;
+  const buf = new ArrayBuffer(44 + n * 2);
+  const view = new DataView(buf);
+  let o = 0;
+  const writeStr = (s) => { for (let i = 0; i < s.length; i++) view.setUint8(o++, s.charCodeAt(i)); };
+  writeStr('RIFF');
+  view.setUint32(o, 36 + n * 2, true); o += 4;
+  writeStr('WAVE');
+  writeStr('fmt ');
+  view.setUint32(o, 16, true);          o += 4;
+  view.setUint16(o, 1, true);           o += 2;       // PCM
+  view.setUint16(o, 1, true);           o += 2;       // mono
+  view.setUint32(o, sampleRate, true);  o += 4;
+  view.setUint32(o, sampleRate * 2, true); o += 4;    // byte rate
+  view.setUint16(o, 2, true);           o += 2;       // block align
+  view.setUint16(o, 16, true);          o += 2;       // bits per sample
+  writeStr('data');
+  view.setUint32(o, n * 2, true);       o += 4;
+  for (let i = 0; i < n; i++) {
+    const s = Math.max(-1, Math.min(1, pcm[i]));
+    view.setInt16(o, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+    o += 2;
+  }
+  return buf;
 }
 
 async function sendMessage(view) {

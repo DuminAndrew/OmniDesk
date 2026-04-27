@@ -18,6 +18,7 @@ module.exports = {
   avatarsDir: () => ensure(path.join(userData(), 'cache', 'avatars')),
   mediaDir: () => ensure(path.join(userData(), 'cache', 'media')),
   voiceDir: () => ensure(path.join(userData(), 'cache', 'voice')),
+  whisperDir: () => ensure(path.join(userData(), 'whisper')),
   telegramSessionFile: () => path.join(userData(), 'sessions', 'telegram.session'),
   telegramConfigFile: () => path.join(userData(), 'sessions', 'telegram.config'),
   vkTokenFile: () => path.join(userData(), 'sessions', 'vk.token'),

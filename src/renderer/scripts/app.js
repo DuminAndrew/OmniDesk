@@ -6,7 +6,7 @@ import { renderInbox } from './modules/inbox.js';
 import { renderCRM } from './modules/crm.js';
 import { renderTasks } from './modules/tasks.js';
 import { renderNotes } from './modules/notes.js';
-import { renderSettings } from './modules/settings.js';
+import { renderSettings, initWallpaper } from './modules/settings.js';
 
 const api = window.omnidesk;
 const root = document.getElementById('app');
@@ -28,6 +28,7 @@ function injectIcons(scope = document) {
 }
 
 async function boot() {
+  initWallpaper();
   const status = (await api.status()).data;
   const hasAnyConnection =
     status.telegram.connected || status.vk.connected ||

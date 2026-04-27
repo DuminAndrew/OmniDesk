@@ -10,12 +10,28 @@ function wireCopyChips(scope) {
       e.preventDefault();
       const text = el.dataset.copy || el.textContent.trim();
       try {
-        await navigator.clipboard.writeText(text);
+        // Primary: Electron native clipboard via IPC (always works inside Electron)
+        const r = await window.omnidesk.copy(text);
+        if (!r || r.ok === false) throw new Error(r?.error || 'IPC copy failed');
         el.classList.add('is-copied');
         toast('Скопировано: ' + text.slice(0, 60), 'success', 1800);
         setTimeout(() => el.classList.remove('is-copied'), 1500);
       } catch (err) {
-        toast('Не удалось скопировать', 'error');
+        // Fallback: legacy execCommand
+        try {
+          const ta = document.createElement('textarea');
+          ta.value = text;
+          ta.style.position = 'fixed'; ta.style.opacity = '0';
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          ta.remove();
+          el.classList.add('is-copied');
+          toast('Скопировано: ' + text.slice(0, 60), 'success', 1800);
+          setTimeout(() => el.classList.remove('is-copied'), 1500);
+        } catch (e2) {
+          toast('Не удалось скопировать: ' + e2.message, 'error');
+        }
       }
     });
   });
@@ -122,6 +138,10 @@ function openTelegramModal(onClose) {
     a.addEventListener('click', (e) => { e.preventDefault(); api.openExternal(a.dataset.link); });
   });
   node.querySelector('[data-action="cancel"]').addEventListener('click', close);
+  const openTgOrgBtn = node.querySelector('[data-action="open-telegram-org"]');
+  if (openTgOrgBtn) {
+    openTgOrgBtn.addEventListener('click', () => api.openTelegramOrg());
+  }
 
   const offLogin = api.on('tg:loginEvent', (ev) => {
     if (ev.type === 'success') { setStatus('Telegram подключён ✓', 'success'); setTimeout(close, 1200); }

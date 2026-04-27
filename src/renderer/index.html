@@ -116,6 +116,11 @@
       <div class="modal__card modal__card--wide">
         <h2>Подключение Telegram</h2>
 
+        <button class="btn btn--accent" data-action="open-telegram-org" style="align-self:flex-start">
+          🔗 Открыть my.telegram.org внутри OmniDesk
+        </button>
+        <p class="muted small" style="margin-top:-6px">Если в обычном браузере получаете ERROR — кликните выше: откроется чистая встроенная сессия.</p>
+
         <details class="guide" open>
           <summary>📖 Как получить API ID и Hash</summary>
           <ol class="guide__list">
@@ -346,6 +351,24 @@
             <button class="btn btn--ghost" data-action="vk-connect">Подключить</button>
             <button class="btn btn--danger" data-action="vk-logout">Отключить</button>
           </div>
+        </div>
+        <div class="settings-card">
+          <h3><span data-icon="image"></span>Фон чатов</h3>
+          <div class="muted small">Выбери приятный для глаз цвет/градиент. Применяется ко всем диалогам.</div>
+          <div class="wallpaper-grid" data-bind="wallpaper-grid"></div>
+        </div>
+
+        <div class="settings-card">
+          <h3><span data-icon="mic"></span>Расшифровка голосовых</h3>
+          <div class="muted" data-bind="whisper-status">проверка…</div>
+          <div data-bind="whisper-progress-wrap" hidden>
+            <div class="muted small" data-bind="whisper-progress-label">…</div>
+            <div class="whisper-progress"><div class="whisper-progress__bar" data-bind="whisper-progress-bar"></div></div>
+          </div>
+          <div class="row">
+            <button class="btn btn--primary" data-action="whisper-install">Установить (~155 MB)</button>
+          </div>
+          <div class="muted small">Whisper.cpp + модель ggml-base. Работает локально, без интернета. Поддерживает русский и английский.</div>
         </div>
       </div>
     </section>

@@ -1,8 +1,11 @@
-const { ipcMain, shell } = require('electron');
+const { ipcMain, shell, clipboard, BrowserWindow, session } = require('electron');
+const path = require('path');
 
 const tg = require('./services/telegramService');
 const vk = require('./services/vkService');
+const whisper = require('./services/whisperService');
 const credentials = require('./services/credentialsManager');
+const { getDb } = require('./db/database');
 
 const clientsRepo = require('./db/repositories/clientsRepo');
 const chatsRepo = require('./db/repositories/chatsRepo');
@@ -24,7 +27,12 @@ function safe(fn) {
   };
 }
 
-function register({ onWebContentsSend }) {
+function register({ onWebContentsSend, mainWindow }) {
+  function send(channel, payload) {
+    const w = mainWindow && mainWindow();
+    if (w) w.webContents.send(channel, payload);
+  }
+
   // ─── Onboarding / status ─────────────────────────────────────────────
   ipcMain.handle('app:status', safe(async () => ({
     telegram: tg.status(),
@@ -35,6 +43,31 @@ function register({ onWebContentsSend }) {
   })));
 
   ipcMain.handle('app:openExternal', safe(async (url) => { await shell.openExternal(url); return true; }));
+
+  ipcMain.handle('app:copy', safe(async (text) => {
+    clipboard.writeText(String(text ?? ''));
+    return true;
+  }));
+
+  // Open my.telegram.org inside a clean Electron BrowserWindow
+  // (separate session = no third-party cookies, sidesteps the "ERROR" bug)
+  ipcMain.handle('app:openTelegramOrg', safe(async () => {
+    const ses = session.fromPartition('persist:tg-org', { cache: true });
+    const win = new BrowserWindow({
+      width: 1100, height: 800,
+      title: 'my.telegram.org · OmniDesk',
+      autoHideMenuBar: true,
+      webPreferences: {
+        partition: 'persist:tg-org',
+        contextIsolation: true,
+        nodeIntegration: false,
+        sandbox: true
+      }
+    });
+    win.removeMenu();
+    await win.loadURL('https://my.telegram.org/');
+    return true;
+  }));
 
   // ─── Proxy ──────────────────────────────────────────────────────────
   ipcMain.handle('proxy:get',  safe(async () => credentials.loadProxy()));
@@ -164,6 +197,33 @@ function register({ onWebContentsSend }) {
   ipcMain.handle('tasks:toggleComplete', safe(async ({ id }) => tasksRepo.toggleComplete(id)));
   ipcMain.handle('tasks:remove',         safe(async ({ id }) => tasksRepo.remove(id)));
   ipcMain.handle('tasks:counts',         safe(async () => tasksRepo.counts()));
+
+  // ─── Whisper / voice transcription ─────────────────────────────────
+  ipcMain.handle('whisper:status', safe(async () => whisper.status()));
+  ipcMain.handle('whisper:downloadModel', safe(async () => {
+    const onProgress = (received, total) => send('whisper:progress', {
+      stage: 'model', received, total
+    });
+    const onProgressBin = (received, total) => send('whisper:progress', {
+      stage: 'binary', received, total
+    });
+    // Binary first (small ~10 MB), then big model (~147 MB)
+    if (!whisper.status().binaryReady) await whisper.downloadBinary(onProgressBin);
+    if (!whisper.status().modelReady)  await whisper.downloadModel(onProgress);
+    send('whisper:progress', { stage: 'done' });
+    return whisper.status();
+  }));
+  ipcMain.handle('whisper:transcribe', safe(async ({ wavBuffer, language = 'ru', messageId = null }) => {
+    const text = await whisper.transcribe({ wavBuffer, language });
+    if (messageId) {
+      getDb().prepare('UPDATE messages SET transcript = ? WHERE id = ?').run(text, messageId);
+    }
+    return { text };
+  }));
+  ipcMain.handle('whisper:saveTranscript', safe(async ({ messageId, text }) => {
+    getDb().prepare('UPDATE messages SET transcript = ? WHERE id = ?').run(text || null, messageId);
+    return true;
+  }));
 }
 
 module.exports = { register };

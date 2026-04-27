@@ -73,7 +73,7 @@ app.whenReady().then(async () => {
   createMainWindow();
   buildTray();
 
-  ipc.register({});
+  ipc.register({ mainWindow: getMainWindow });
 
   // Wire inbox events → DB → notify renderer
   inboxAggregator.init({

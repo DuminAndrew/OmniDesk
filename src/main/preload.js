@@ -6,6 +6,8 @@ contextBridge.exposeInMainWorld('omnidesk', {
   // ── App / status ──────────────────────────────────────────────
   status:        () => invoke('app:status'),
   openExternal:  (url) => invoke('app:openExternal', url),
+  copy:          (text) => invoke('app:copy', text),
+  openTelegramOrg: () => invoke('app:openTelegramOrg'),
 
   // ── Proxy ─────────────────────────────────────────────────────
   proxy: {
@@ -109,7 +111,8 @@ contextBridge.exposeInMainWorld('omnidesk', {
       'inbox:newMessage',
       'inbox:avatarReady',
       'tg:status', 'vk:status',
-      'tg:loginEvent'
+      'tg:loginEvent',
+      'whisper:progress'
     ]);
     if (!allowed.has(channel)) return () => {};
     const listener = (_e, payload) => handler(payload);
