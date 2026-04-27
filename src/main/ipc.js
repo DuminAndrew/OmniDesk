@@ -1,4 +1,4 @@
-const { ipcMain, shell, clipboard, BrowserWindow, session } = require('electron');
+const { ipcMain, shell, clipboard, BrowserWindow, session, dialog } = require('electron');
 const path = require('path');
 
 const tg = require('./services/telegramService');
@@ -105,6 +105,39 @@ function register({ onWebContentsSend, mainWindow }) {
     chatsRepo.upsert({
       source: chat.source, external_id: chat.external_id, title: chat.title,
       last_message: text, last_ts: Date.now()
+    });
+    return msg;
+  }));
+
+  ipcMain.handle('inbox:pickFile', safe(async () => {
+    const r = await dialog.showOpenDialog({
+      properties: ['openFile'],
+      filters: [
+        { name: 'Все файлы', extensions: ['*'] },
+        { name: 'Изображения', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'] },
+        { name: 'Видео',       extensions: ['mp4', 'mov', 'webm', 'mkv', 'avi'] },
+        { name: 'Аудио',       extensions: ['mp3', 'm4a', 'ogg', 'wav', 'flac'] },
+        { name: 'Документы',   extensions: ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt'] }
+      ]
+    });
+    if (r.canceled || !r.filePaths.length) return null;
+    const file = r.filePaths[0];
+    const stat = require('fs').statSync(file);
+    return { path: file, name: path.basename(file), size: stat.size };
+  }));
+
+  ipcMain.handle('inbox:sendFile', safe(async ({ chatRowId, filePath, caption = '' }) => {
+    const chat = chatsRepo.get(chatRowId);
+    if (!chat) throw new Error('Chat not found');
+    if (chat.source === 'tg') await tg.sendFile(chat.external_id, filePath, caption);
+    else if (chat.source === 'vk') await vk.sendFile(chat.external_id, filePath, caption);
+    else throw new Error('Unknown chat source');
+    const fileName = path.basename(filePath);
+    const body = caption ? `${caption}\n📎 ${fileName}` : `📎 ${fileName}`;
+    const msg = messagesRepo.add({ chat_id: chat.id, direction: 'out', body, ts: Date.now() });
+    chatsRepo.upsert({
+      source: chat.source, external_id: chat.external_id, title: chat.title,
+      last_message: body, last_ts: Date.now()
     });
     return msg;
   }));

@@ -51,6 +51,12 @@ class VkService extends EventEmitter {
             reply_message: raw.reply_message || raw.replyMessage
           };
           const normalized = normalizeVkMessage(m);
+          // Live message_new doesn't include the profiles batch — resolve
+          // reply author lazily via _resolvePeer if we have the from_id.
+          if (m.reply_message?.from_id && !normalized.reply_to_author) {
+            const r = await this._resolvePeer(m.reply_message.from_id).catch(() => null);
+            if (r) normalized.reply_to_author = r.title;
+          }
           const meta = await this._resolvePeer(peerId).catch(() => null);
 
           // For incoming messages in chats/groups, resolve the actual sender
@@ -229,7 +235,7 @@ class VkService extends EventEmitter {
     };
 
     return items.map(m => {
-      const n = normalizeVkMessage(m);
+      const n = normalizeVkMessage(m, profiles, groups);
       const s = resolveSender(m.from_id);
       return {
         externalId: String(m.id),
@@ -249,6 +255,32 @@ class VkService extends EventEmitter {
     if (!this.vk || !this.connected) throw new Error('VK not connected');
     const random_id = Math.floor(Math.random() * 1e9);
     await this.vk.api.messages.send({ peer_id: Number(peerId), message: String(text), random_id });
+    return { ok: true };
+  }
+
+  async sendFile(peerId, filePath, caption = '') {
+    if (!this.vk || !this.connected) throw new Error('VK not connected');
+    const ext = (filePath.split('.').pop() || '').toLowerCase();
+    const isImage = ['png','jpg','jpeg','gif','webp','bmp'].includes(ext);
+    const isVideo = ['mp4','mov','webm','mkv','avi'].includes(ext);
+    let attachment;
+    if (isImage) {
+      const photo = await this.vk.upload.messagePhoto({ peer_id: Number(peerId), source: { value: filePath } });
+      attachment = `photo${photo.ownerId}_${photo.id}`;
+    } else if (isVideo) {
+      const video = await this.vk.upload.video({ source: { value: filePath } });
+      attachment = `video${video.ownerId}_${video.id}`;
+    } else {
+      const doc = await this.vk.upload.messageDocument({ peer_id: Number(peerId), source: { value: filePath } });
+      attachment = `doc${doc.ownerId}_${doc.id}`;
+    }
+    const random_id = Math.floor(Math.random() * 1e9);
+    await this.vk.api.messages.send({
+      peer_id: Number(peerId),
+      message: String(caption || ''),
+      attachment,
+      random_id
+    });
     return { ok: true };
   }
 

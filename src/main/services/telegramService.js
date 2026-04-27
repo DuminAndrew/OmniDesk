@@ -291,6 +291,18 @@ class TelegramService extends EventEmitter {
     return { ok: true };
   }
 
+  async sendFile(externalChatId, filePath, caption = '') {
+    if (!this.client || !this.connected) throw new Error('Telegram not connected');
+    let entity = externalChatId;
+    if (/^-?\d+$/.test(String(externalChatId))) entity = Number(externalChatId);
+    await this.client.sendFile(entity, {
+      file: filePath,
+      caption: String(caption || ''),
+      forceDocument: false
+    });
+    return { ok: true };
+  }
+
   async disconnect() {
     if (this.client) { try { await this.client.disconnect(); } catch (_) {} this.client = null; }
     this.connected = false;

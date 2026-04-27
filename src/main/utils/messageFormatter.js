@@ -151,9 +151,21 @@ function extractVkForwarded(fwds) {
   }));
 }
 
-function normalizeVkMessage(m) {
+function normalizeVkMessage(m, profiles = [], groups = []) {
   const att = extractVkAttachments(m.attachments);
   const fwds = extractVkForwarded(m.fwd_messages);
+  let reply_to_text = null, reply_to_author = null;
+  if (m.reply_message) {
+    reply_to_text = m.reply_message.text?.slice(0, 200) || '';
+    const fromId = m.reply_message.from_id;
+    if (fromId > 0) {
+      const p = profiles.find(p => p.id === fromId);
+      if (p) reply_to_author = `${p.first_name} ${p.last_name}`;
+    } else if (fromId < 0) {
+      const g = groups.find(g => g.id === Math.abs(fromId));
+      if (g) reply_to_author = g.name;
+    }
+  }
   return {
     body: composeVkBody({
       text: m.text,
@@ -163,8 +175,8 @@ function normalizeVkMessage(m) {
       reply_message: m.reply_message
     }),
     attachments: [...att, ...fwds],
-    reply_to_text: m.reply_message ? (m.reply_message.text?.slice(0, 200) || '') : null,
-    reply_to_author: null
+    reply_to_text,
+    reply_to_author
   };
 }
 

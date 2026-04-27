@@ -109,13 +109,48 @@
 .thread__composer {
   border-top: 1px solid var(--border);
   padding: 14px 18px;
-  display: grid; grid-template-columns: 1fr auto; gap: 10px;
+  display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: end;
   background: var(--bg-glass);
   backdrop-filter: var(--blur-glass);
 }
 .thread__composer textarea {
   resize: none; min-height: 56px; max-height: 140px;
 }
+.thread__composer-attach {
+  width: 44px; height: 44px;
+  display: grid; place-content: center;
+  border-radius: 50%;
+  background: rgba(255,255,255,.04);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast), transform var(--t-fast);
+  align-self: center;
+}
+.thread__composer-attach:hover { background: rgba(0,198,255,.18); color: var(--tg-1); transform: scale(1.05); }
+.thread__composer-attach.is-pending {
+  background: var(--grad-tg); color: white; border-color: transparent;
+  animation: pulse 1.2s infinite;
+}
+.compose-attach-preview {
+  grid-column: 1 / -1;
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px;
+  background: rgba(0,198,255,.08);
+  border: 1px solid rgba(0,198,255,.25);
+  border-radius: var(--r-md);
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+.compose-attach-preview button {
+  background: rgba(255,255,255,.06);
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  display: grid; place-content: center;
+  margin-left: auto;
+  color: var(--text-muted);
+}
+.compose-attach-preview button:hover { color: var(--danger); background: rgba(255,92,92,.1); }
 
 .card-stack {
   padding: 22px;

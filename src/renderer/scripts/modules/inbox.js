@@ -40,6 +40,7 @@ export async function renderInbox(host, { injectIcons }) {
   });
 
   $('[data-action="send"]', view).addEventListener('click', () => sendMessage(view));
+  $('[data-action="attach"]', view).addEventListener('click', () => attachFile(view));
   $('[data-bind="composer"]', view).addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) sendMessage(view);
   });
@@ -239,8 +240,11 @@ function renderBubble(m, chat) {
     html += `<div class="bubble__sender">${av}${escapeHtml(m.sender_name)}</div>`;
   }
 
-  if (m.reply_to_text) {
-    html += `<div class="bubble__reply">${escapeHtml(m.reply_to_text)}</div>`;
+  if (m.reply_to_text || m.reply_to_author) {
+    html += `<div class="bubble__reply">
+      ${m.reply_to_author ? `<div class="bubble__reply-author">${escapeHtml(m.reply_to_author)}</div>` : ''}
+      <div class="bubble__reply-text">${escapeHtml(m.reply_to_text || '[медиа]')}</div>
+    </div>`;
   }
 
   const att = Array.isArray(m.attachments) ? m.attachments : [];
@@ -704,10 +708,65 @@ function encodeWav(pcm, sampleRate) {
   return buf;
 }
 
+let pendingAttach = null;
+
+async function attachFile(view) {
+  if (!activeChatId) { toast('Сначала откройте чат', 'error'); return; }
+  const r = await api.inbox.pickFile();
+  if (!r?.ok || !r.data) return;
+  pendingAttach = r.data;
+  // Show preview chip above composer
+  const composerWrap = $('.thread__composer', view);
+  let preview = composerWrap.querySelector('.compose-attach-preview');
+  if (!preview) {
+    preview = document.createElement('div');
+    preview.className = 'compose-attach-preview';
+    composerWrap.insertBefore(preview, composerWrap.firstChild);
+  }
+  preview.innerHTML = `
+    ${icon('paperclip', 14)}
+    <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(pendingAttach.name)}</span>
+    <span class="muted small">${humanSize(pendingAttach.size)}</span>
+    <button data-cancel-attach>${icon('x', 12)}</button>
+  `;
+  preview.querySelector('[data-cancel-attach]').addEventListener('click', () => {
+    pendingAttach = null;
+    preview.remove();
+  });
+}
+
 async function sendMessage(view) {
   if (!activeChatId) return;
   const ta = bind(view, 'composer');
   const text = ta.value.trim();
+  const attachBtn = $('[data-action="attach"]', view);
+
+  if (pendingAttach) {
+    const file = pendingAttach;
+    const caption = text;
+    pendingAttach = null;
+    ta.value = '';
+    attachBtn.classList.add('is-pending');
+    const sendBtn = $('[data-action="send"]', view);
+    sendBtn.disabled = true;
+    sendBtn.textContent = 'Отправляем…';
+    try {
+      const res = await api.inbox.sendFile({ chatRowId: activeChatId, filePath: file.path, caption });
+      if (!res.ok) throw new Error(res.error);
+      toast('Файл отправлен', 'success');
+    } catch (e) {
+      toast('Не отправлено: ' + e.message, 'error');
+    } finally {
+      attachBtn.classList.remove('is-pending');
+      sendBtn.disabled = false;
+      sendBtn.innerHTML = icon('send') + 'Отправить';
+      $('.compose-attach-preview', view)?.remove();
+    }
+    await refreshChats(view);
+    await refreshThreadMessages(view, activeChatId);
+    return;
+  }
+
   if (!text) return;
   ta.value = '';
   const res = await api.inbox.sendMessage({ chatRowId: activeChatId, text });
