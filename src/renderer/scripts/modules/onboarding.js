@@ -166,7 +166,20 @@ function openTelegramModal(onClose) {
     if (!apiId || !apiHash || !phone) return toast('Заполните все поля', 'error');
     setStatus('Отправляем код…');
     const res = await api.telegram.startLogin({ apiId: Number(apiId), apiHash, phoneNumber: phone });
-    if (!res.ok) return setStatus('Ошибка: ' + res.error, 'error');
+    if (!res.ok) {
+      // Friendly handling for FloodWait — Telegram throttles after multiple SendCode attempts
+      const flood = /A wait of (\d+) seconds is required/i.exec(res.error || '');
+      if (flood) {
+        const total = Number(flood[1]);
+        startFloodCountdown(node, total);
+        return;
+      }
+      const phoneInvalid = /PHONE_NUMBER_INVALID/i.test(res.error || '');
+      if (phoneInvalid) return setStatus('Неверный формат номера. Используйте международный формат: +79001234567', 'error');
+      const apiIdInvalid = /API_ID_INVALID/i.test(res.error || '');
+      if (apiIdInvalid) return setStatus('Неверный API ID или Hash. Проверьте, что скопированы без пробелов.', 'error');
+      return setStatus('Ошибка: ' + res.error, 'error');
+    }
     stage('code');
   });
 
@@ -189,6 +202,37 @@ function openTelegramModal(onClose) {
     const res = await api.telegram.submitPassword({ password });
     if (!res.ok) return setStatus('Ошибка: ' + res.error, 'error');
   });
+}
+
+function startFloodCountdown(node, totalSeconds) {
+  const el = node.querySelector('[data-bind="status-msg"]');
+  const setStatusEl = (msg, kind = '') => {
+    const stage = (name) => {
+      node.querySelectorAll('[data-stage]').forEach(s => s.hidden = s.dataset.stage !== name);
+    };
+    stage('status');
+    el.className = 'status-msg ' + kind;
+    el.innerHTML = msg;
+  };
+  let remaining = totalSeconds;
+  const minutes = Math.ceil(totalSeconds / 60);
+  const tick = () => {
+    if (remaining <= 0) {
+      setStatusEl('✅ Можно повторить попытку. Закройте и откройте окно подключения заново.', 'success');
+      return;
+    }
+    const m = Math.floor(remaining / 60);
+    const s = remaining % 60;
+    setStatusEl(`
+      <b>Telegram временно ограничил отправку кодов</b><br/>
+      Это лимит на стороне Telegram (срабатывает после нескольких попыток подряд для одного номера).<br/><br/>
+      Подождите <b>${m}:${String(s).padStart(2, '0')}</b> (${minutes} мин), затем нажмите «Подключить» снова.<br/><br/>
+      <span class="muted small">Совет: пока ждёте, можно попробовать <b>другой номер</b>, или просто оставить это окно открытым — таймер сам отсчитает.</span>
+    `, 'error');
+    remaining--;
+    setTimeout(tick, 1000);
+  };
+  tick();
 }
 
 // ─── VK modal ───────────────────────────────────────────────────

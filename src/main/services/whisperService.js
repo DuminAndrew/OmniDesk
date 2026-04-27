@@ -169,27 +169,35 @@ async function transcribe({ wavBuffer, language = 'ru' }) {
       '-l', language,
       '-otxt',
       '-of', outBase,
-      '--no-timestamps'
+      '-nt'                      // no timestamps (long form: --no-timestamps)
     ];
+    logger.info('Whisper spawn:', s.binaryPath, args.join(' '));
     const child = spawn(s.binaryPath, args, { windowsHide: true, cwd: dir() });
-    let stderr = '';
+    let stdout = '', stderr = '';
+    child.stdout.on('data', d => stdout += d.toString());
     child.stderr.on('data', d => stderr += d.toString());
     child.on('error', (err) => {
       try { fs.unlinkSync(wavFile); } catch (_) {}
-      reject(err);
+      reject(new Error('Whisper spawn failed: ' + err.message));
     });
     child.on('close', (code) => {
       try { fs.unlinkSync(wavFile); } catch (_) {}
       const outTxt = outBase + '.txt';
+      logger.info('Whisper exit', code, 'stdout-tail:', stdout.slice(-300), 'stderr-tail:', stderr.slice(-300));
       if (code !== 0) {
         try { fs.unlinkSync(outTxt); } catch (_) {}
-        return reject(new Error('Whisper exit ' + code + ': ' + stderr.slice(-400)));
+        const both = (stderr + (stderr && stdout ? '\n' : '') + stdout).trim();
+        return reject(new Error(
+          `Whisper exit ${code}. ${both ? 'Вывод: ' + both.slice(-400) : 'Без вывода — возможно, не хватает DLL рядом с whisper-cli.exe (переустановите модель)'}`
+        ));
       }
       try {
         const text = fs.readFileSync(outTxt, 'utf-8').trim();
         try { fs.unlinkSync(outTxt); } catch (_) {}
         resolve(text);
-      } catch (err) { reject(err); }
+      } catch (err) {
+        reject(new Error('Whisper закончил работу, но .txt не появился: ' + err.message + '. stdout: ' + stdout.slice(-200)));
+      }
     });
   });
 }
