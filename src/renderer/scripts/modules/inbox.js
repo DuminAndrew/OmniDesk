@@ -213,6 +213,16 @@ async function refreshThreadMessages(view, chatOrId) {
   box.scrollTop = box.scrollHeight;
 }
 
+const URL_REGEX = /(https?:\/\/[^\s<>"']+)/gi;
+
+function extractFirstUrl(text) {
+  if (!text) return null;
+  const matches = text.match(URL_REGEX);
+  if (!matches || !matches.length) return null;
+  // Strip trailing punctuation
+  return matches[0].replace(/[.,;:!?)]+$/, '');
+}
+
 function renderBubble(m, chat) {
   const wrap = document.createElement('div');
   wrap.className = `bubble-group ${m.direction}`;
@@ -252,12 +262,50 @@ function renderBubble(m, chat) {
     bubble.textContent = m.body || '';
   }
 
+  // Auto link preview for plain URLs in body (only if no structured link
+  // attachment already present)
+  const hasLinkAtt = att.some(a => a.kind === 'link');
+  if (!hasLinkAtt) {
+    const url = extractFirstUrl(m.body);
+    if (url) {
+      const preview = document.createElement('div');
+      preview.className = 'link-preview-slot';
+      bubble.appendChild(preview);
+      // Lazy fetch
+      api.link.preview(url).then(res => {
+        if (!res?.ok || !res.data) return;
+        renderLinkPreview(preview, res.data);
+      }).catch(() => {});
+    }
+  }
+
   wrap.appendChild(bubble);
   const ts = document.createElement('div');
   ts.className = 'bubble__ts';
   ts.textContent = fmtTime(m.ts);
   wrap.appendChild(ts);
   return wrap;
+}
+
+function renderLinkPreview(host, p) {
+  const img = p.image ? `<img class="link-preview__image" src="${escapeHtml(p.image)}" loading="lazy" onerror="this.remove()"/>` : '';
+  host.outerHTML = `
+    <div class="link-preview" data-url="${escapeHtml(p.url)}">
+      ${img}
+      <div class="link-preview__body">
+        ${p.siteName ? `<div class="link-preview__site">${escapeHtml(p.siteName)}</div>` : ''}
+        <div class="link-preview__title">${escapeHtml(p.title || p.url)}</div>
+        ${p.description ? `<div class="link-preview__desc">${escapeHtml(p.description)}</div>` : ''}
+      </div>
+    </div>`;
+  // openExternal for the now-replaced node
+  setTimeout(() => {
+    document.querySelectorAll('.link-preview[data-url]').forEach(el => {
+      if (el.dataset.bound) return;
+      el.dataset.bound = '1';
+      el.addEventListener('click', () => api.openExternal(el.dataset.url));
+    });
+  }, 0);
 }
 
 function extractTextOnly(body) {
@@ -733,6 +781,29 @@ async function refreshSidePanel(view, chat) {
     api.openExternal(url);
   });
 
+  // Media stats panel
+  const msgsRes = await api.messages.list({ chatId: chat.id });
+  const msgs = msgsRes.data || [];
+  const stats = computeMediaStats(msgs);
+  const mediaCard = document.createElement('div');
+  mediaCard.className = 'card';
+  const rows = MEDIA_CATEGORIES
+    .filter(([key]) => stats[key] && stats[key].length)
+    .map(([key, label, iconName]) => `
+      <div class="media-stat" data-cat="${key}">
+        <div class="media-stat__icon">${icon(iconName, 14)}</div>
+        <div class="media-stat__label">${label}</div>
+        <div class="media-stat__count">${stats[key].length}</div>
+      </div>`).join('');
+  mediaCard.innerHTML = `
+    <div class="client-card__head"><div class="client-card__name" style="display:flex;align-items:center;gap:8px">${icon('image', 18)} Медиа в чате</div></div>
+    ${rows ? `<div class="media-stats">${rows}</div>` : '<div class="muted small" style="margin-top:10px">Медиа пока нет</div>'}
+  `;
+  side.appendChild(mediaCard);
+  mediaCard.querySelectorAll('.media-stat').forEach(el => {
+    el.addEventListener('click', () => openMediaGallery(el.dataset.cat, stats[el.dataset.cat], chat));
+  });
+
   // Notes for chat
   const notesRes = await api.notes.listForChat({ chatId: chat.id });
   const notesCard = document.createElement('div');
@@ -761,6 +832,112 @@ async function refreshSidePanel(view, chat) {
   notesCard.querySelector('[data-note-input]').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') addNote();
   });
+}
+
+const MEDIA_CATEGORIES = [
+  ['photo',     'Фото',           'image'],
+  ['video',     'Видео',          'paperclip'],
+  ['voice',     'Голосовые',      'mic'],
+  ['audio',     'Аудио',          'mic'],
+  ['file',      'Файлы',          'paperclip'],
+  ['link',      'Ссылки',         'link'],
+  ['gif',       'GIF',            'image'],
+  ['sticker',   'Стикеры',        'image']
+];
+
+function computeMediaStats(msgs) {
+  const out = {};
+  for (const [key] of MEDIA_CATEGORIES) out[key] = [];
+  for (const m of msgs) {
+    const att = Array.isArray(m.attachments) ? m.attachments : [];
+    for (const a of att) {
+      if (out[a.kind]) out[a.kind].push({ msg: m, att: a });
+    }
+    // Plain text URLs count as links
+    const url = extractFirstUrl(m.body);
+    if (url && !att.some(a => a.kind === 'link')) {
+      out.link.push({ msg: m, att: { kind: 'link', url, title: url } });
+    }
+  }
+  return out;
+}
+
+function openMediaGallery(category, items, chat) {
+  document.querySelectorAll('.media-gallery').forEach(el => el.remove());
+  const labels = Object.fromEntries(MEDIA_CATEGORIES.map(([k, l]) => [k, l]));
+  const wrap = document.createElement('div');
+  wrap.className = 'media-gallery';
+  wrap.innerHTML = `
+    <div class="media-gallery__head">
+      <h2>${labels[category] || category} · ${items.length}</h2>
+      <button class="media-gallery__close" data-close>${icon('x', 16)}</button>
+    </div>
+    <div class="media-gallery__grid" data-grid></div>
+  `;
+  document.body.appendChild(wrap);
+  const grid = wrap.querySelector('[data-grid]');
+  for (const it of items) {
+    grid.appendChild(renderGalleryItem(category, it, chat));
+  }
+  wrap.querySelector('[data-close]').addEventListener('click', () => wrap.remove());
+  wrap.addEventListener('click', (e) => { if (e.target === wrap) wrap.remove(); });
+  document.addEventListener('keydown', function esc(e) {
+    if (e.key === 'Escape') { wrap.remove(); document.removeEventListener('keydown', esc); }
+  });
+}
+
+function renderGalleryItem(category, { msg, att }, chat) {
+  const div = document.createElement('div');
+  if (category === 'photo' || category === 'sticker' || category === 'gif') {
+    div.className = 'media-gallery__photo';
+    if (att.url) {
+      div.innerHTML = `<img src="${escapeHtml(att.url)}" loading="lazy" alt=""/>`;
+      div.addEventListener('click', () => openLightbox(att.fullUrl || att.url));
+    } else {
+      div.innerHTML = `<div style="display:grid;place-content:center;height:100%;color:var(--text-muted);font-size:12px">${labels(category)} (без превью)</div>`;
+    }
+  } else if (category === 'video') {
+    div.className = 'media-gallery__photo';
+    if (att.previewUrl) div.innerHTML = `<img src="${escapeHtml(att.previewUrl)}" loading="lazy"/>`;
+    else                div.innerHTML = `<div style="display:grid;place-content:center;height:100%;font-size:32px;color:var(--text-muted)">🎬</div>`;
+    div.style.cursor = 'pointer';
+    div.addEventListener('click', () => {
+      if (att.tgRef && chat.source === 'tg') {
+        api.media.download({ source: 'tg', externalChatId: chat.external_id, msgId: msg.external_id, kind: 'video', ext: 'mp4' })
+          .then(r => { if (r.ok) openVideoLightbox({ src: r.data, type: 'mp4' }); });
+      } else if (att.vkEmbedUrl) {
+        openVideoLightbox({ src: att.vkEmbedUrl, type: 'iframe', fallbackUrl: att.vkUrl });
+      }
+    });
+  } else if (category === 'voice' || category === 'audio') {
+    div.className = 'media-gallery__file';
+    div.innerHTML = `
+      <div class="media-gallery__file-name">${icon('mic', 14)} ${category === 'voice' ? 'Голосовое' : (att.title || 'Аудио')}</div>
+      <div class="media-gallery__file-meta">${att.duration ? fmtDur(att.duration) : ''} · ${fmtTime(msg.ts)}</div>`;
+  } else if (category === 'file') {
+    div.className = 'media-gallery__file';
+    div.innerHTML = `
+      <div class="media-gallery__file-name">${icon('paperclip', 14)} ${escapeHtml(att.title || 'Файл')}</div>
+      <div class="media-gallery__file-meta">${att.size ? humanSize(att.size) : (att.ext || '')} · ${fmtTime(msg.ts)}</div>`;
+    if (att.url) {
+      div.style.cursor = 'pointer';
+      div.addEventListener('click', () => api.openExternal(att.url));
+    }
+  } else if (category === 'link') {
+    div.className = 'media-gallery__file';
+    div.innerHTML = `
+      <div class="media-gallery__file-name">${icon('link', 14)} ${escapeHtml(att.title || att.url || '')}</div>
+      <div class="media-gallery__file-meta" style="word-break:break-all">${escapeHtml(att.url || '')}</div>`;
+    if (att.url) {
+      div.style.cursor = 'pointer';
+      div.addEventListener('click', () => api.openExternal(att.url));
+    }
+  }
+  return div;
+}
+
+function labels(c) {
+  return Object.fromEntries(MEDIA_CATEGORIES.map(([k, l]) => [k, l]))[c] || c;
 }
 
 function ribbonSvg() {

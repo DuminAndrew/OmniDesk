@@ -4,6 +4,7 @@ const path = require('path');
 const tg = require('./services/telegramService');
 const vk = require('./services/vkService');
 const whisper = require('./services/whisperService');
+const linkPreview = require('./services/linkPreview');
 const credentials = require('./services/credentialsManager');
 const { getDb } = require('./db/database');
 
@@ -226,6 +227,9 @@ function register({ onWebContentsSend, mainWindow }) {
     getDb().prepare('UPDATE messages SET transcript = ? WHERE id = ?').run(text || null, messageId);
     return true;
   }));
+
+  // ─── Link previews ─────────────────────────────────────────────────
+  ipcMain.handle('link:preview', safe(async ({ url }) => linkPreview.getPreview(url)));
 }
 
 module.exports = { register };

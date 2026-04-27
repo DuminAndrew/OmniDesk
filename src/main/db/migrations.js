@@ -132,6 +132,18 @@ function applyMigrations(db) {
   if (!columnExists(db, 'messages', 'sender_avatar')) {
     db.exec('ALTER TABLE messages ADD COLUMN sender_avatar TEXT');
   }
+
+  // v7 → v8: link preview cache
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS link_previews (
+      url        TEXT PRIMARY KEY,
+      title      TEXT,
+      description TEXT,
+      image      TEXT,
+      site_name  TEXT,
+      fetched_at INTEGER NOT NULL
+    );
+  `);
 }
 
 module.exports = { applyMigrations };

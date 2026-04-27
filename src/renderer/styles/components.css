@@ -700,6 +700,135 @@ select option { background: var(--bg-elevated); color: var(--text-primary); }
 .media-link__desc { color: var(--text-muted); margin-top: 2px; }
 .bubble.out .media-link__desc { color: rgba(255,255,255,.78); }
 
+/* Rich link preview card (from OG tags) */
+.link-preview {
+  margin-top: 6px;
+  display: grid;
+  grid-template-columns: 1fr;
+  background: rgba(0,0,0,.18);
+  border-left: 3px solid var(--tg-1);
+  border-radius: 0 var(--r-md) var(--r-md) 0;
+  overflow: hidden;
+  cursor: pointer;
+  max-width: 360px;
+  transition: transform var(--t-fast);
+}
+.bubble.out .link-preview { background: rgba(255,255,255,.18); border-left-color: rgba(255,255,255,.85); }
+.link-preview:hover { transform: translateY(-1px); }
+.link-preview__image {
+  width: 100%;
+  max-height: 180px;
+  object-fit: cover;
+  display: block;
+  background: var(--bg-base-2);
+}
+.link-preview__body { padding: 10px 12px; }
+.link-preview__site {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--tg-1);
+  letter-spacing: .03em;
+  text-transform: uppercase;
+}
+.bubble.out .link-preview__site { color: white; }
+.link-preview__title {
+  font-weight: 600;
+  font-size: 13px;
+  margin-top: 2px;
+  line-height: 1.35;
+}
+.link-preview__desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.bubble.out .link-preview__desc { color: rgba(255,255,255,.85); }
+
+/* Media stats panel in chat side */
+.media-stats {
+  display: flex; flex-direction: column; gap: 2px;
+  margin-top: 12px;
+}
+.media-stat {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  gap: 10px; align-items: center;
+  padding: 9px 10px;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: background var(--t-fast);
+  color: var(--text-secondary);
+}
+.media-stat:hover { background: rgba(255,255,255,.04); color: var(--text-primary); }
+.media-stat__icon {
+  width: 28px; height: 28px;
+  border-radius: 8px;
+  background: var(--bg-base-2);
+  border: 1px solid var(--border);
+  display: grid; place-content: center;
+  color: var(--tg-1);
+}
+.media-stat__label { font-size: 13px; }
+.media-stat__count { font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
+/* Media gallery modal */
+.media-gallery {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.85);
+  backdrop-filter: var(--blur-glass);
+  display: flex; flex-direction: column;
+  z-index: 4500;
+  animation: fadeIn .15s var(--ease);
+}
+.media-gallery__head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+}
+.media-gallery__head h2 { font-size: 18px; font-weight: 700; }
+.media-gallery__close {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.06);
+  border: 1px solid var(--border-strong);
+  color: white;
+  display: grid; place-content: center;
+  cursor: pointer;
+}
+.media-gallery__close:hover { background: rgba(255,255,255,.12); }
+.media-gallery__grid {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px 24px 24px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+}
+.media-gallery__photo {
+  aspect-ratio: 1;
+  background: var(--bg-base-2);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  cursor: zoom-in;
+}
+.media-gallery__photo img { width: 100%; height: 100%; object-fit: cover; }
+.media-gallery__file {
+  background: var(--bg-base-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 14px;
+  cursor: pointer;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.media-gallery__file:hover { border-color: var(--border-strong); }
+.media-gallery__file-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.media-gallery__file-meta { font-size: 11px; color: var(--text-muted); }
+
 /* ───── Cards ────────────────────────────────────────────────────── */
 .card, .client-card, .note-card, .settings-card {
   background: var(--grad-card);

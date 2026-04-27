@@ -105,6 +105,11 @@ contextBridge.exposeInMainWorld('omnidesk', {
     saveTranscript:(data) => invoke('whisper:saveTranscript', data)
   },
 
+  // ── Link previews ─────────────────────────────────────────────
+  link: {
+    preview: (url) => invoke('link:preview', { url })
+  },
+
   // ── Subscriptions to push events from main ────────────────────
   on: (channel, handler) => {
     const allowed = new Set([
