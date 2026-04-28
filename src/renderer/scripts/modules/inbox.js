@@ -46,31 +46,49 @@ export async function renderInbox(host, { injectIcons }) {
   composer.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) sendMessage(view);
   });
-  composer.addEventListener('paste', async (e) => {
+  const handlePaste = async (e) => {
+    if (!activeChatId) return;
     const items = e.clipboardData?.items;
-    if (!items) return;
+    if (!items || !items.length) return;
     for (const item of items) {
-      if (item.kind === 'file' && item.type.startsWith('image/')) {
-        e.preventDefault();
-        const blob = item.getAsFile();
-        if (!blob) continue;
-        const ext = (item.type.split('/')[1] || 'png').toLowerCase();
+      const isFile  = item.kind === 'file';
+      const isImage = (item.type || '').startsWith('image/');
+      if (!isFile || !isImage) continue;
+
+      e.preventDefault();
+      const blob = item.getAsFile();
+      if (!blob) continue;
+      const ext = ((item.type.split('/')[1] || 'png').split(';')[0] || 'png').toLowerCase();
+      try {
         const buffer = await blob.arrayBuffer();
-        try {
-          const r = await api.inbox.savePastedImage({ buffer, ext });
-          if (r.ok && r.data) {
-            pendingAttach = r.data;
-            showAttachChip(view, pendingAttach);
-            toast('Картинка из буфера готова к отправке', 'success', 1500);
-          } else {
-            toast('Не удалось вставить: ' + (r.error || 'unknown'), 'error');
-          }
-        } catch (err) {
-          toast('Не удалось вставить: ' + err.message, 'error');
+        // Pass the raw bytes through preload via a Uint8Array (Electron clones
+        // ArrayBuffer cleanly through ipcRenderer.invoke)
+        const r = await api.inbox.savePastedImage({
+          buffer: new Uint8Array(buffer),
+          ext
+        });
+        if (r?.ok && r.data) {
+          pendingAttach = r.data;
+          showAttachChip(view, pendingAttach);
+          toast('Картинка из буфера готова — добавь подпись (опц.) и жми «Отправить»', 'success', 2200);
+        } else {
+          toast('Не удалось вставить: ' + (r?.error || 'нет данных'), 'error');
         }
-        return;
+      } catch (err) {
+        toast('Не удалось вставить: ' + err.message, 'error');
       }
+      return;
     }
+  };
+  composer.addEventListener('paste', handlePaste);
+  // Window-level fallback: when chat is open and the user Ctrl+V's anywhere
+  // (not strictly inside the textarea), still grab pasted images
+  document.addEventListener('paste', (e) => {
+    // Only if focus isn't on a different editable field
+    const t = e.target;
+    if (t === composer) return; // already handled above
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+    handlePaste(e);
   });
 
   api.on('inbox:newMessage', async () => {
@@ -454,18 +472,25 @@ function renderAttachment(a, chat, msg) {
     }
     case 'forwarded': {
       div.className = 'bubble-fwd';
-      let html = `<div class="bubble-fwd__head">${icon('link', 12)} Пересланное сообщение</div>`;
+      const author = a.author ? `Переслано от ${escapeHtml(a.author)}` : 'Пересланное сообщение';
+      let html = `<div class="bubble-fwd__head">↻ ${author}</div>`;
       if (a.text) html += `<div class="bubble-fwd__body">${escapeHtml(a.text)}</div>`;
       div.innerHTML = html;
-      // Render nested attachments inside the forward
+      let renderedSomething = !!a.text;
       for (const sub of (a.attachments || [])) {
         const node = renderAttachment(sub, chat, msg);
-        if (node) div.appendChild(node);
+        if (node) { div.appendChild(node); renderedSomething = true; }
       }
-      // Recursive nested forwards
       for (const sub of (a.nested || [])) {
         const node = renderAttachment(sub, chat, msg);
-        if (node) div.appendChild(node);
+        if (node) { div.appendChild(node); renderedSomething = true; }
+      }
+      if (!renderedSomething) {
+        const empty = document.createElement('div');
+        empty.className = 'muted small';
+        empty.style.cssText = 'padding:4px 0;font-style:italic';
+        empty.textContent = '(содержимое скрыто настройками приватности)';
+        div.appendChild(empty);
       }
       return div;
     }
@@ -700,16 +725,16 @@ function bindVoicePlayer(scope, a, chat, msg) {
     paintProgress(ratio);
   });
 
-  // Collapse / expand transcript
-  const toggleBtn = scope.parentElement?.querySelector('[data-toggle-transcript]')
-                 || scope.querySelector('[data-toggle-transcript]');
-  const transcriptBody = scope.parentElement?.querySelector('[data-transcript-body]')
-                      || scope.querySelector('[data-transcript-body]');
+  // Collapse / expand transcript (always look INSIDE scope to avoid grabbing
+  // toggles from sibling bubbles)
+  const toggleBtn = scope.querySelector('[data-toggle-transcript]');
+  const transcriptBody = scope.querySelector('[data-transcript-body]');
   if (toggleBtn && transcriptBody) {
-    toggleBtn.addEventListener('click', () => {
-      const open = !transcriptBody.classList.toggle('is-collapsed');
-      toggleBtn.textContent = open ? '▾' : '▸';
-      toggleBtn.title = open ? 'Свернуть' : 'Развернуть';
+    toggleBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const collapsed = transcriptBody.classList.toggle('is-collapsed');
+      toggleBtn.textContent = collapsed ? '▸' : '▾';
+      toggleBtn.title = collapsed ? 'Развернуть' : 'Свернуть';
     });
   }
 

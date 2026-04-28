@@ -139,21 +139,32 @@ function composeVkBody({ text, attachments, geo, fwd_messages, reply_message } =
   return parts.join(' · ').slice(0, 200) || (reply_message ? '↪️ Ответ' : '[пустое сообщение]');
 }
 
-function extractVkForwarded(fwds) {
+function extractVkForwarded(fwds, profiles = [], groups = []) {
   if (!Array.isArray(fwds) || !fwds.length) return [];
-  return fwds.map(f => ({
-    kind: 'forwarded',
-    text: f.text || '',
-    fromId: f.from_id,
-    date: (f.date || 0) * 1000,
-    attachments: extractVkAttachments(f.attachments || []),
-    nested: extractVkForwarded(f.fwd_messages || [])
-  }));
+  return fwds.map(f => {
+    let author = null;
+    if (f.from_id > 0) {
+      const p = profiles.find(p => p.id === f.from_id);
+      if (p) author = `${p.first_name} ${p.last_name}`;
+    } else if (f.from_id < 0) {
+      const g = groups.find(g => g.id === Math.abs(f.from_id));
+      if (g) author = g.name;
+    }
+    return {
+      kind: 'forwarded',
+      text: f.text || '',
+      author,
+      fromId: f.from_id,
+      date: (f.date || 0) * 1000,
+      attachments: extractVkAttachments(f.attachments || []),
+      nested: extractVkForwarded(f.fwd_messages || [], profiles, groups)
+    };
+  });
 }
 
 function normalizeVkMessage(m, profiles = [], groups = []) {
   const att = extractVkAttachments(m.attachments);
-  const fwds = extractVkForwarded(m.fwd_messages);
+  const fwds = extractVkForwarded(m.fwd_messages, profiles, groups);
   let reply_to_text = null, reply_to_author = null;
   if (m.reply_message) {
     reply_to_text = m.reply_message.text?.slice(0, 200) || '';
@@ -259,14 +270,38 @@ function composeTgBody(msg) {
   return text || '[пустое сообщение]';
 }
 
+function tgForwardHeader(fwd) {
+  if (!fwd) return null;
+  const name = fwd.fromName
+            || fwd.fromId?.userId
+            || fwd.fromId?.channelId
+            || fwd.fromId?.chatId
+            || null;
+  return name ? String(name) : 'кого-то';
+}
+
 function normalizeTgMessage(msg) {
   let reply_to_text = null;
   if (msg.replyToMsgId && msg.replyTo) {
     reply_to_text = '';
   }
+  const att = extractTgAttachments(msg);
+  // TG forwards: the message itself IS the forwarded content. Mark with
+  // a 'forwarded' attachment that wraps the bubble's own body+media so
+  // the renderer shows a proper "Переслано от X" block.
+  if (msg.fwdFrom) {
+    att.unshift({
+      kind: 'forwarded',
+      text: msg.message || '',
+      author: tgForwardHeader(msg.fwdFrom),
+      attachments: att.slice(), // existing media (will be excluded from main bubble)
+      nested: [],
+      _consumeBody: true        // tell renderer to suppress duplicate body
+    });
+  }
   return {
     body: composeTgBody(msg),
-    attachments: extractTgAttachments(msg),
+    attachments: att,
     reply_to_text,
     reply_to_author: null
   };
