@@ -85,27 +85,41 @@ function decodeEntities(s) {
     .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCharCode(parseInt(n, 16)));
 }
 
+/**
+ * Match a <meta> tag where the property/name attribute equals `key`,
+ * regardless of whether `content=` comes before or after it. Both attribute
+ * orders are common in real-world HTML.
+ */
+function metaContent(html, key) {
+  const escKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(
+    `<meta\\b[^>]*?(?:property|name)\\s*=\\s*["']${escKey}["'][^>]*?content\\s*=\\s*["']([^"']*)["']` +
+    `|<meta\\b[^>]*?content\\s*=\\s*["']([^"']*)["'][^>]*?(?:property|name)\\s*=\\s*["']${escKey}["']`,
+    'i'
+  );
+  const m = html.match(re);
+  if (!m) return null;
+  const v = (m[1] || m[2] || '').trim();
+  return v ? decodeEntities(v) : null;
+}
+
 function extractMeta(html, url) {
-  const get = (re) => {
-    const m = html.match(re);
+  const ogTitle = metaContent(html, 'og:title');
+  const ogDesc  = metaContent(html, 'og:description');
+  const ogImage = metaContent(html, 'og:image:secure_url') || metaContent(html, 'og:image');
+  const ogSite  = metaContent(html, 'og:site_name');
+  const twTitle = metaContent(html, 'twitter:title');
+  const twDesc  = metaContent(html, 'twitter:description');
+  const twImage = metaContent(html, 'twitter:image') || metaContent(html, 'twitter:image:src');
+  const titleTag = (() => {
+    const m = html.match(/<title[^>]*>([^<]+)<\/title>/i);
     return m ? decodeEntities(m[1].trim()) : null;
-  };
-  // Open Graph
-  const ogTitle = get(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i)
-              ||  get(/<meta[^>]+name=["']og:title["'][^>]+content=["']([^"']+)["']/i);
-  const ogDesc  = get(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i)
-              ||  get(/<meta[^>]+name=["']og:description["'][^>]+content=["']([^"']+)["']/i);
-  const ogImage = get(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)
-              ||  get(/<meta[^>]+name=["']og:image["'][^>]+content=["']([^"']+)["']/i);
-  const ogSite  = get(/<meta[^>]+property=["']og:site_name["'][^>]+content=["']([^"']+)["']/i);
-  // Twitter cards
-  const twTitle = get(/<meta[^>]+name=["']twitter:title["'][^>]+content=["']([^"']+)["']/i);
-  const twDesc  = get(/<meta[^>]+name=["']twitter:description["'][^>]+content=["']([^"']+)["']/i);
-  const twImage = get(/<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i);
-  // Plain
-  const title   = ogTitle || twTitle || get(/<title[^>]*>([^<]+)<\/title>/i);
-  const desc    = ogDesc  || twDesc  || get(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i);
-  let image     = ogImage || twImage;
+  })();
+  const metaDesc = metaContent(html, 'description');
+
+  const title = ogTitle || twTitle || titleTag;
+  const desc  = ogDesc  || twDesc  || metaDesc;
+  let image   = ogImage || twImage;
   if (image && !/^https?:\/\//i.test(image)) {
     try { image = new URL(image, url).href; } catch (_) { image = null; }
   }

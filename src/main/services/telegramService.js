@@ -207,23 +207,33 @@ class TelegramService extends EventEmitter {
     }
   }
 
-  async listDialogs(limit = 80) {
+  async listDialogs(limit = 200) {
     if (!this.client || !this.connected) return [];
     const dialogs = await this.client.getDialogs({ limit });
     const out = [];
     for (const d of dialogs) {
       const externalId = String(d.id);
-      // Try to use existing cached avatar; trigger background download if missing
       let avatarUrl = mediaCache.avatarExists('tg', externalId)
         ? mediaCache.avatarUrl('tg', externalId)
         : null;
       if (!avatarUrl && d.entity) {
-        // fire-and-forget
         this._ensureAvatar(d.entity, externalId).catch(() => {});
+      }
+      // Build proper full name for users (TG dialog.title often = firstName only)
+      let title = d.title;
+      if (d.entity) {
+        const e = d.entity;
+        const cls = e.className || '';
+        if (cls === 'User' || cls.includes('User')) {
+          const full = [e.firstName, e.lastName].filter(Boolean).join(' ').trim();
+          if (full) title = full;
+          else if (e.username) title = '@' + e.username;
+          else title = title || 'Без имени';
+        }
       }
       out.push({
         externalId,
-        title: d.title || d.name || 'Telegram',
+        title: title || d.name || 'Telegram',
         avatarUrl,
         lastMessage: d.message ? composeTgBody(d.message) : '',
         lastTs: d.message ? (d.message.date * 1000) : null,
@@ -287,20 +297,20 @@ class TelegramService extends EventEmitter {
     if (!this.client || !this.connected) throw new Error('Telegram not connected');
     let entity = externalChatId;
     if (/^-?\d+$/.test(String(externalChatId))) entity = Number(externalChatId);
-    await this.client.sendMessage(entity, { message: String(text) });
-    return { ok: true };
+    const sent = await this.client.sendMessage(entity, { message: String(text) });
+    return { ok: true, messageId: sent?.id ? String(sent.id) : null };
   }
 
   async sendFile(externalChatId, filePath, caption = '') {
     if (!this.client || !this.connected) throw new Error('Telegram not connected');
     let entity = externalChatId;
     if (/^-?\d+$/.test(String(externalChatId))) entity = Number(externalChatId);
-    await this.client.sendFile(entity, {
+    const sent = await this.client.sendFile(entity, {
       file: filePath,
       caption: String(caption || ''),
       forceDocument: false
     });
-    return { ok: true };
+    return { ok: true, messageId: sent?.id ? String(sent.id) : null };
   }
 
   async disconnect() {

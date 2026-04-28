@@ -591,16 +591,37 @@ select option { background: var(--bg-elevated); color: var(--text-primary); }
   max-width: 320px;
 }
 .bubble.out .media-voice__transcript { background: rgba(255,255,255,.16); border-left-color: white; color: white; }
+.media-voice__transcript-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 4px;
+}
 .media-voice__transcript-label {
-  display: block;
   font-size: 10.5px;
   text-transform: uppercase;
   letter-spacing: .07em;
   color: var(--text-muted);
-  margin-bottom: 4px;
   font-weight: 600;
 }
-.bubble.out .media-voice__transcript-label { color: rgba(255,255,255,.65); }
+.bubble.out .media-voice__transcript-label { color: rgba(255,255,255,.7); }
+.media-voice__transcript-toggle {
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: background var(--t-fast), color var(--t-fast);
+  line-height: 1;
+}
+.media-voice__transcript-toggle:hover { background: rgba(255,255,255,.06); color: var(--text-primary); }
+.bubble.out .media-voice__transcript-toggle { color: rgba(255,255,255,.7); }
+.media-voice__transcript-body {
+  white-space: pre-wrap;
+  overflow: hidden;
+  max-height: 600px;
+  transition: max-height .25s var(--ease);
+}
+.media-voice__transcript-body.is-collapsed { max-height: 0; }
 
 /* Whisper progress bar */
 .whisper-progress {

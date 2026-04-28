@@ -96,11 +96,14 @@ function register({ onWebContentsSend, mainWindow }) {
   ipcMain.handle('inbox:sendMessage', safe(async ({ chatRowId, text }) => {
     const chat = chatsRepo.get(chatRowId);
     if (!chat) throw new Error('Chat not found');
-    if (chat.source === 'tg') await tg.sendMessage(chat.external_id, text);
-    else if (chat.source === 'vk') await vk.sendMessage(chat.external_id, text);
+    let result;
+    if (chat.source === 'tg')      result = await tg.sendMessage(chat.external_id, text);
+    else if (chat.source === 'vk') result = await vk.sendMessage(chat.external_id, text);
     else throw new Error('Unknown chat source');
-    const msg = messagesRepo.add({
-      chat_id: chat.id, direction: 'out', body: text, ts: Date.now()
+    // Save with external_id from API → addOrEnrich on message_new echo dedups
+    const msg = messagesRepo.addOrEnrich({
+      chat_id: chat.id, direction: 'out', body: text, ts: Date.now(),
+      external_id: result?.messageId || null
     });
     chatsRepo.upsert({
       source: chat.source, external_id: chat.external_id, title: chat.title,
@@ -129,12 +132,20 @@ function register({ onWebContentsSend, mainWindow }) {
   ipcMain.handle('inbox:sendFile', safe(async ({ chatRowId, filePath, caption = '' }) => {
     const chat = chatsRepo.get(chatRowId);
     if (!chat) throw new Error('Chat not found');
-    if (chat.source === 'tg') await tg.sendFile(chat.external_id, filePath, caption);
-    else if (chat.source === 'vk') await vk.sendFile(chat.external_id, filePath, caption);
+    let result;
+    if (chat.source === 'tg')      result = await tg.sendFile(chat.external_id, filePath, caption);
+    else if (chat.source === 'vk') result = await vk.sendFile(chat.external_id, filePath, caption);
     else throw new Error('Unknown chat source');
+
     const fileName = path.basename(filePath);
-    const body = caption ? `${caption}\n📎 ${fileName}` : `📎 ${fileName}`;
-    const msg = messagesRepo.add({ chat_id: chat.id, direction: 'out', body, ts: Date.now() });
+    const body = caption || (result?.attachment?.kind === 'photo' ? '📷 Фото' : `📎 ${fileName}`);
+    const attachments = result?.attachment ? [result.attachment] : null;
+
+    const msg = messagesRepo.addOrEnrich({
+      chat_id: chat.id, direction: 'out', body, ts: Date.now(),
+      external_id: result?.messageId || null,
+      attachments
+    });
     chatsRepo.upsert({
       source: chat.source, external_id: chat.external_id, title: chat.title,
       last_message: body, last_ts: Date.now()

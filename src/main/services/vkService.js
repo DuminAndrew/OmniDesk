@@ -254,8 +254,10 @@ class VkService extends EventEmitter {
   async sendMessage(peerId, text) {
     if (!this.vk || !this.connected) throw new Error('VK not connected');
     const random_id = Math.floor(Math.random() * 1e9);
-    await this.vk.api.messages.send({ peer_id: Number(peerId), message: String(text), random_id });
-    return { ok: true };
+    const messageId = await this.vk.api.messages.send({
+      peer_id: Number(peerId), message: String(text), random_id
+    });
+    return { ok: true, messageId: messageId ? String(messageId) : null };
   }
 
   async sendFile(peerId, filePath, caption = '') {
@@ -264,24 +266,31 @@ class VkService extends EventEmitter {
     const isImage = ['png','jpg','jpeg','gif','webp','bmp'].includes(ext);
     const isVideo = ['mp4','mov','webm','mkv','avi'].includes(ext);
     let attachment;
+    let preview = null;
     if (isImage) {
       const photo = await this.vk.upload.messagePhoto({ peer_id: Number(peerId), source: { value: filePath } });
       attachment = `photo${photo.ownerId}_${photo.id}`;
+      // Pick a 600px preview URL from sizes (vk-io returns photo with sizes array)
+      const sizes = photo.sizes || [];
+      const big = sizes.slice().sort((a, b) => (b.width || 0) - (a.width || 0))[0];
+      preview = { kind: 'photo', url: big?.url, fullUrl: big?.url };
     } else if (isVideo) {
       const video = await this.vk.upload.video({ source: { value: filePath } });
       attachment = `video${video.ownerId}_${video.id}`;
+      preview = { kind: 'video', title: video.title || '', vkUrl: `https://vk.com/video${video.ownerId}_${video.id}` };
     } else {
       const doc = await this.vk.upload.messageDocument({ peer_id: Number(peerId), source: { value: filePath } });
       attachment = `doc${doc.ownerId}_${doc.id}`;
+      preview = { kind: 'file', title: doc.title || '', url: doc.url, ext: doc.ext, size: doc.size };
     }
     const random_id = Math.floor(Math.random() * 1e9);
-    await this.vk.api.messages.send({
+    const messageId = await this.vk.api.messages.send({
       peer_id: Number(peerId),
       message: String(caption || ''),
       attachment,
       random_id
     });
-    return { ok: true };
+    return { ok: true, messageId: messageId ? String(messageId) : null, attachment: preview };
   }
 
   async disconnect() {

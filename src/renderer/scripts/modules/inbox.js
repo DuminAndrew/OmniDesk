@@ -292,24 +292,20 @@ function renderBubble(m, chat) {
 }
 
 function renderLinkPreview(host, p) {
-  const img = p.image ? `<img class="link-preview__image" src="${escapeHtml(p.image)}" loading="lazy" onerror="this.remove()"/>` : '';
-  host.outerHTML = `
-    <div class="link-preview" data-url="${escapeHtml(p.url)}">
-      ${img}
-      <div class="link-preview__body">
-        ${p.siteName ? `<div class="link-preview__site">${escapeHtml(p.siteName)}</div>` : ''}
-        <div class="link-preview__title">${escapeHtml(p.title || p.url)}</div>
-        ${p.description ? `<div class="link-preview__desc">${escapeHtml(p.description)}</div>` : ''}
-      </div>
+  const img = p.image
+    ? `<img class="link-preview__image" src="${escapeHtml(p.image)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()"/>`
+    : '';
+  const card = document.createElement('div');
+  card.className = 'link-preview';
+  card.innerHTML = `
+    ${img}
+    <div class="link-preview__body">
+      ${p.siteName ? `<div class="link-preview__site">${escapeHtml(p.siteName)}</div>` : ''}
+      <div class="link-preview__title">${escapeHtml(p.title || p.url)}</div>
+      ${p.description ? `<div class="link-preview__desc">${escapeHtml(p.description)}</div>` : ''}
     </div>`;
-  // openExternal for the now-replaced node
-  setTimeout(() => {
-    document.querySelectorAll('.link-preview[data-url]').forEach(el => {
-      if (el.dataset.bound) return;
-      el.dataset.bound = '1';
-      el.addEventListener('click', () => api.openExternal(el.dataset.url));
-    });
-  }, 0);
+  card.addEventListener('click', () => api.openExternal(p.url));
+  host.replaceWith(card);
 }
 
 function extractTextOnly(body) {
@@ -533,8 +529,6 @@ function humanSize(bytes) {
 }
 
 function renderVoicePlayer(a, msg) {
-  // Render 28 bars with pseudo-random heights (deterministic per message id
-  // so the same voice always looks the same)
   const seed = (msg.id || msg.external_id || 0) >>> 0;
   let s = seed || 1;
   const rnd = () => { s = (s * 1664525 + 1013904223) >>> 0; return (s & 0xffff) / 0xffff; };
@@ -552,8 +546,12 @@ function renderVoicePlayer(a, msg) {
       <div class="media-voice__time" data-time>${fmtDur(a.duration || 0)}</div>
       <button class="media-voice__transcribe" data-transcribe title="Расшифровать">${icon('mic', 13)}</button>
     </div>
-    ${msg.transcript ? `<div class="media-voice__transcript">
-      <span class="media-voice__transcript-label">Расшифровка</span>${escapeHtml(msg.transcript)}
+    ${msg.transcript ? `<div class="media-voice__transcript" data-transcript-card>
+      <div class="media-voice__transcript-head">
+        <span class="media-voice__transcript-label">Расшифровка</span>
+        <button class="media-voice__transcript-toggle" data-toggle-transcript title="Свернуть">▾</button>
+      </div>
+      <div class="media-voice__transcript-body" data-transcript-body>${escapeHtml(msg.transcript)}</div>
     </div>` : ''}`;
 }
 
@@ -615,6 +613,19 @@ function bindVoicePlayer(scope, a, chat, msg) {
     audio.currentTime = audio.duration * ratio;
     paintProgress(ratio);
   });
+
+  // Collapse / expand transcript
+  const toggleBtn = scope.parentElement?.querySelector('[data-toggle-transcript]')
+                 || scope.querySelector('[data-toggle-transcript]');
+  const transcriptBody = scope.parentElement?.querySelector('[data-transcript-body]')
+                      || scope.querySelector('[data-transcript-body]');
+  if (toggleBtn && transcriptBody) {
+    toggleBtn.addEventListener('click', () => {
+      const open = !transcriptBody.classList.toggle('is-collapsed');
+      toggleBtn.textContent = open ? '▾' : '▸';
+      toggleBtn.title = open ? 'Свернуть' : 'Развернуть';
+    });
+  }
 
   if (transcribeBtn) {
     transcribeBtn.addEventListener('click', async () => {
