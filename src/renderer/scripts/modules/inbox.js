@@ -443,30 +443,66 @@ function renderAttachment(a, chat, msg) {
     case 'video': {
       const cls = a.round ? 'media-video is-round' : 'media-video';
       const label = (a.round ? 'Кружок' : (a.title || 'Видео')) + (a.duration ? ' · ' + fmtDur(a.duration) : '');
-      div.innerHTML = `<div class="${cls}">
+      div.innerHTML = `<div class="${cls}" data-state="idle">
         <div class="media-video__icon">${a.round ? '📹' : '🎬'}</div>
         <div class="media-video__label">${escapeHtml(label)}</div>
-        <div class="muted small" style="margin-top:4px">Нажмите для воспроизведения</div>
+        <div class="media-video__hint muted small" style="margin-top:4px">Нажмите для воспроизведения</div>
       </div>`;
-      div.querySelector('.media-video').addEventListener('click', async () => {
-        // Telegram → download mp4 and play in lightbox
-        if (a.tgRef && chat.source === 'tg' && msg.external_id) {
-          try {
-            toast('Скачиваем видео…', 'info', 1500);
-            const r = await api.media.download({ source: 'tg', externalChatId: chat.external_id, msgId: msg.external_id, kind: a.round ? 'round' : 'video', ext: 'mp4' });
-            if (r.ok && r.data) openVideoLightbox({ src: r.data, type: 'mp4' });
-            else toast('Не удалось скачать: ' + (r?.error || 'нет данных'), 'error');
-          } catch (e) { toast(e.message, 'error'); }
-          return;
-        }
-        // VK videos: embed vk.com player inside our own lightbox iframe;
-        // pass vkUrl as fallback for private videos (where the iframe
-        // shows "Видеофайл не найден" because it has no VK cookies).
+      const card = div.querySelector('.media-video');
+      let cachedSrc = null;
+
+      const setState = (state, msg) => {
+        card.dataset.state = state;
+        card.querySelector('.media-video__hint').textContent = msg;
+        card.querySelector('.media-video__icon').textContent = {
+          idle: a.round ? '📹' : '🎬',
+          loading: '⏳',
+          ready: '▶',
+          error: '⚠',
+          playing: '▶'
+        }[state] || '🎬';
+      };
+
+      const playLightbox = (src) => {
+        openVideoLightbox({ src, type: 'mp4' });
+      };
+
+      card.addEventListener('click', async () => {
+        // Already downloaded → just open lightbox
+        if (cachedSrc) { playLightbox(cachedSrc); return; }
+
+        // VK iframe path — no download needed, opens straight in lightbox
         if (chat.source === 'vk' && a.vkEmbedUrl) {
           openVideoLightbox({ src: a.vkEmbedUrl, type: 'iframe', fallbackUrl: a.vkUrl });
           return;
         }
-        toast('Воспроизведение недоступно', 'error');
+
+        // TG download path
+        if (a.tgRef && chat.source === 'tg' && msg.external_id) {
+          if (card.dataset.state === 'loading') return; // already in flight
+          setState('loading', 'Скачивание из Telegram…');
+          try {
+            const r = await api.media.download({
+              source: 'tg', externalChatId: chat.external_id,
+              msgId: msg.external_id, kind: a.round ? 'round' : 'video', ext: 'mp4'
+            });
+            if (r.ok && r.data) {
+              cachedSrc = r.data;
+              setState('ready', 'Готово · нажмите для просмотра');
+              card.style.borderColor = 'rgba(46,204,113,.4)';
+              playLightbox(cachedSrc); // also open immediately first time
+            } else {
+              setState('error', 'Не скачалось: ' + (r?.error || 'нет данных'));
+              card.style.borderColor = 'rgba(255,92,92,.4)';
+            }
+          } catch (e) {
+            setState('error', 'Ошибка: ' + e.message);
+            card.style.borderColor = 'rgba(255,92,92,.4)';
+          }
+          return;
+        }
+
+        toast('Воспроизведение недоступно для этого видео', 'error');
       });
       return div;
     }
