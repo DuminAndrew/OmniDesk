@@ -114,6 +114,13 @@ contextBridge.exposeInMainWorld('omnidesk', {
     preview: (url) => invoke('link:preview', { url })
   },
 
+  // ── OTA updater ───────────────────────────────────────────────
+  updater: {
+    state:   () => invoke('updater:state'),
+    check:   () => invoke('updater:check'),
+    install: () => invoke('updater:install')
+  },
+
   // ── Subscriptions to push events from main ────────────────────
   on: (channel, handler) => {
     const allowed = new Set([
@@ -121,7 +128,8 @@ contextBridge.exposeInMainWorld('omnidesk', {
       'inbox:avatarReady',
       'tg:status', 'vk:status',
       'tg:loginEvent',
-      'whisper:progress'
+      'whisper:progress',
+      'updater:state'
     ]);
     if (!allowed.has(channel)) return () => {};
     const listener = (_e, payload) => handler(payload);

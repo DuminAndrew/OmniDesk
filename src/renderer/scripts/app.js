@@ -65,6 +65,18 @@ async function enterApp() {
   reflect(tgPill, init.telegram.connected);
   reflect(vkPill, init.vk.connected);
 
+  // Update sidebar version chip + flash if a new version is ready
+  const verEl = $('[data-bind="sidebar-version"]', shell);
+  const paintVer = async () => {
+    const s = (await api.updater.state())?.data;
+    if (!s) return;
+    if (s.status === 'ready')       verEl.innerHTML = `v${s.currentVersion} · <span style="color:var(--success)">⬆ ${s.newVersion}</span>`;
+    else if (s.status === 'downloading') verEl.innerHTML = `v${s.currentVersion} · загружается…`;
+    else                             verEl.textContent = 'v' + s.currentVersion;
+  };
+  paintVer();
+  api.on('updater:state', paintVer);
+
   // Tasks counter (pending) in sidebar
   const taskCounter = $('[data-bind="tasks-counter"]', shell);
   const refreshTaskCounter = async () => {

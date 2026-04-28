@@ -226,7 +226,7 @@
           <div class="sidebar__logo"><img src="assets/icon.svg" alt=""/></div>
           <div>
             <div class="sidebar__title">OmniDesk</div>
-            <div class="sidebar__sub">v1.0.0</div>
+            <div class="sidebar__sub" data-bind="sidebar-version">v1.1.0</div>
           </div>
         </div>
         <nav class="sidebar__nav">
@@ -360,6 +360,19 @@
             <button class="btn btn--danger" data-action="vk-logout">Отключить</button>
           </div>
         </div>
+        <div class="settings-card" data-bind="updater-card">
+          <h3><span data-icon="download"></span>Обновления</h3>
+          <div class="muted" data-bind="updater-status">проверка…</div>
+          <div data-bind="updater-progress-wrap" hidden>
+            <div class="whisper-progress"><div class="whisper-progress__bar" data-bind="updater-progress-bar"></div></div>
+          </div>
+          <div class="row">
+            <button class="btn btn--ghost" data-action="updater-check">Проверить обновления</button>
+            <button class="btn btn--primary" data-action="updater-install" hidden>Установить и перезапустить</button>
+          </div>
+          <div class="muted small">Автоматически загружает новые версии с GitHub releases.</div>
+        </div>
+
         <div class="settings-card">
           <h3><span data-icon="download"></span>Автозагрузка медиа</h3>
           <div class="muted small">Автоматически скачивать фото / голосовые / видео из Telegram при открытии чата (без необходимости кликать каждое).</div>

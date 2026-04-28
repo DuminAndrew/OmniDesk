@@ -35,6 +35,42 @@ export async function renderSettings(host, { injectIcons }) {
     if (r.ok) { toast('VK отключён', 'success'); refresh(); }
   });
 
+  // OTA updater
+  const updaterStatus = bind(view, 'updater-status');
+  const updaterWrap   = bind(view, 'updater-progress-wrap');
+  const updaterBar    = bind(view, 'updater-progress-bar');
+  const checkBtn      = $('[data-action="updater-check"]', view);
+  const installBtn    = $('[data-action="updater-install"]', view);
+
+  function paintUpdaterState(s) {
+    if (!s) return;
+    const ver = s.currentVersion ? ` (текущая ${s.currentVersion})` : '';
+    if (s.status === 'idle')        updaterStatus.textContent = 'Не проверялось' + ver;
+    if (s.status === 'checking')    updaterStatus.textContent = 'Проверяем GitHub…' + ver;
+    if (s.status === 'up-to-date')  updaterStatus.textContent = `✓ Установлена последняя версия ${s.currentVersion}`;
+    if (s.status === 'downloading') updaterStatus.textContent = `⬇ Загружается ${s.newVersion} · ${s.progress || 0}%`;
+    if (s.status === 'ready')       updaterStatus.textContent = `✅ Версия ${s.newVersion} готова к установке`;
+    if (s.status === 'error')       updaterStatus.textContent = '⚠ Ошибка: ' + (s.error || 'неизвестно');
+
+    updaterWrap.hidden = s.status !== 'downloading';
+    if (s.status === 'downloading') updaterBar.style.width = (s.progress || 0) + '%';
+
+    installBtn.hidden = s.status !== 'ready';
+    checkBtn.disabled = s.status === 'checking' || s.status === 'downloading';
+  }
+
+  api.updater.state().then(r => paintUpdaterState(r?.data));
+  api.on('updater:state', paintUpdaterState);
+  checkBtn.addEventListener('click', async () => {
+    paintUpdaterState({ status: 'checking', currentVersion: (await api.updater.state()).data?.currentVersion });
+    const r = await api.updater.check();
+    if (r?.data) paintUpdaterState(r.data);
+  });
+  installBtn.addEventListener('click', async () => {
+    if (!confirm('Установить обновление? Приложение перезапустится.')) return;
+    await api.updater.install();
+  });
+
   // Auto-download media toggle
   const autoToggle = bind(view, 'autoload-toggle');
   if (autoToggle) {

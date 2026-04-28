@@ -1,6 +1,6 @@
 {
   "name": "omnidesk",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "OmniDesk — Windows-агрегатор Telegram и ВКонтакте со встроенной мини-CRM и заметками",
   "author": {
     "name": "OmniDesk",
@@ -20,6 +20,7 @@
   "dependencies": {
     "adm-zip": "^0.5.17",
     "better-sqlite3": "^11.3.0",
+    "electron-updater": "^6.8.3",
     "telegram": "^2.26.16",
     "vk-io": "^4.9.0"
   },

@@ -27,6 +27,13 @@ extraResources:
   - from: build/tray.png
     to: tray.png
 
+# OTA: electron-updater pulls latest.yml + new .exe from GitHub releases
+publish:
+  - provider: github
+    owner: DuminAndrew
+    repo: OmniDesk
+    releaseType: release
+
 win:
   target:
     - target: nsis

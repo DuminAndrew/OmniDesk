@@ -28,6 +28,7 @@ const ipc = require('./ipc');
 const tg = require('./services/telegramService');
 const vk = require('./services/vkService');
 const inboxAggregator = require('./services/inboxAggregator');
+const updater = require('./services/updater');
 const { getDb, closeDb } = require('./db/database');
 
 app.on('second-instance', () => {
@@ -98,6 +99,16 @@ app.whenReady().then(async () => {
   // Try to auto-reconnect using saved sessions
   tg.connectFromSession().catch((e) => logger.warn('TG auto-connect skipped', e.message));
   vk.connectFromToken().catch((e) => logger.warn('VK auto-connect skipped', e.message));
+
+  // Push updater state to renderer
+  updater.on('state', (st) => {
+    const w = getMainWindow();
+    if (w) w.webContents.send('updater:state', st);
+  });
+  // Silent first check after a short delay so the window is up
+  setTimeout(() => updater.check({ silent: true }), 8000);
+  // Re-check every 4 hours
+  setInterval(() => updater.check({ silent: true }), 4 * 60 * 60 * 1000);
 
   logger.info('OmniDesk started, userData =', app.getPath('userData'));
 });

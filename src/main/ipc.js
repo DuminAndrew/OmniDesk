@@ -5,6 +5,7 @@ const tg = require('./services/telegramService');
 const vk = require('./services/vkService');
 const whisper = require('./services/whisperService');
 const linkPreview = require('./services/linkPreview');
+const updater = require('./services/updater');
 const credentials = require('./services/credentialsManager');
 const { getDb } = require('./db/database');
 
@@ -336,6 +337,11 @@ function register({ onWebContentsSend, mainWindow }) {
 
   // ─── Link previews ─────────────────────────────────────────────────
   ipcMain.handle('link:preview', safe(async ({ url }) => linkPreview.getPreview(url)));
+
+  // ─── Updater (OTA) ─────────────────────────────────────────────────
+  ipcMain.handle('updater:state',   safe(async () => updater.getState()));
+  ipcMain.handle('updater:check',   safe(async () => updater.check({ silent: false })));
+  ipcMain.handle('updater:install', safe(async () => updater.install()));
 }
 
 module.exports = { register };
