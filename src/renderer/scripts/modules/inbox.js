@@ -265,32 +265,54 @@ async function refreshThreadMessages(view, chatOrId) {
 }
 
 const autoDownloaded = new Set();
+
+function walkAttachmentsDeep(list, fn) {
+  if (!Array.isArray(list)) return;
+  for (const a of list) {
+    fn(a);
+    if (Array.isArray(a.attachments)) walkAttachmentsDeep(a.attachments, fn);
+    if (Array.isArray(a.nested))      walkAttachmentsDeep(a.nested, fn);
+  }
+}
+
 async function autoDownloadTgMedia(box, chat, msgs) {
   for (const m of msgs) {
-    if (!Array.isArray(m.attachments) || !m.external_id) continue;
-    for (const a of m.attachments) {
-      if (!a.tgRef) continue;
-      const key = `${chat.id}-${m.external_id}-${a.kind}`;
-      if (autoDownloaded.has(key)) continue;
+    if (!m.external_id) continue;
+    walkAttachmentsDeep(m.attachments, (a) => {
+      if (!a.tgRef) return;
+      const key = `${chat.id}-${m.external_id}-${a.kind}-${a.tgRef.msgId || ''}`;
+      if (autoDownloaded.has(key)) return;
       autoDownloaded.add(key);
-      // Only auto-fetch lightweight media (photos + voice). Videos / files
-      // stay click-to-load to avoid eating bandwidth on huge attachments.
+      // Lightweight media only — photos + voice. Use the attachment's
+      // own tgRef.msgId (forwarded items reference the original).
+      const refMsgId = a.tgRef.msgId || m.external_id;
+      const refChatId = a.tgRef.chatId || chat.external_id;
       if (a.kind === 'photo') {
-        api.media.download({ source: 'tg', externalChatId: chat.external_id, msgId: m.external_id, kind: 'photo', ext: 'jpg' })
+        api.media.download({ source: 'tg', externalChatId: refChatId, msgId: refMsgId, kind: 'photo', ext: 'jpg' })
           .then(r => {
             if (!r?.ok || !r.data) return;
-            const placeholder = box.querySelector(`[data-msg-id="${m.id}"] .media-video`);
-            if (placeholder) {
-              const wrap = placeholder.parentElement;
-              wrap.innerHTML = `<img class="media-photo" src="${r.data}" alt=""/>`;
-              wrap.querySelector('img').addEventListener('click', () => openLightbox(r.data));
-            }
+            // Find every placeholder in the visible thread that points to this ref
+            box.querySelectorAll('.media-video[data-state="idle"]').forEach(card => {
+              // Heuristic: match by the icon character; better strategy below
+            });
+            // Reload the bubble to swap placeholders cleanly
+            requestAnimationFrame(() => {
+              // Simple approach: just trigger a re-render of the thread.
+              // refreshThreadMessages will use the cached file via downloadAndSwap.
+              // To avoid a flicker we directly mutate matching photo placeholders:
+              box.querySelectorAll('img[data-pending-photo]').forEach(img => {
+                if (img.dataset.pendingPhoto === refMsgId) {
+                  img.src = r.data;
+                  delete img.dataset.pendingPhoto;
+                }
+              });
+            });
           }).catch(() => {});
       } else if (a.kind === 'voice') {
-        api.media.download({ source: 'tg', externalChatId: chat.external_id, msgId: m.external_id, kind: 'voice', ext: 'ogg' })
+        api.media.download({ source: 'tg', externalChatId: refChatId, msgId: refMsgId, kind: 'voice', ext: 'ogg' })
           .catch(() => {});
       }
-    }
+    });
   }
 }
 
@@ -321,9 +343,12 @@ function renderBubble(m, chat) {
   }
 
   if (m.reply_to_text || m.reply_to_author) {
+    const replyText = m.reply_to_text && m.reply_to_text.trim()
+      ? m.reply_to_text
+      : 'Сообщение';
     html += `<div class="bubble__reply">
       ${m.reply_to_author ? `<div class="bubble__reply-author">${escapeHtml(m.reply_to_author)}</div>` : ''}
-      <div class="bubble__reply-text">${escapeHtml(m.reply_to_text || '[медиа]')}</div>
+      <div class="bubble__reply-text">${escapeHtml(replyText)}</div>
     </div>`;
   }
 

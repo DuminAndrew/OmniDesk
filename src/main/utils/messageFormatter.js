@@ -162,12 +162,30 @@ function extractVkForwarded(fwds, profiles = [], groups = []) {
   });
 }
 
+function describeVkMedia(attachments) {
+  const items = extractVkAttachments(attachments);
+  if (!items.length) return '';
+  const a = items[0];
+  if (a.kind === 'photo')   return '📷 Фото';
+  if (a.kind === 'voice')   return `🎤 Голосовое ${fmtDuration(a.duration)}`;
+  if (a.kind === 'audio')   return `🎵 ${a.artist || ''} – ${a.title || ''}`.trim();
+  if (a.kind === 'video')   return '🎬 Видео' + (a.title ? ' — ' + a.title : '');
+  if (a.kind === 'sticker') return '🌟 Стикер';
+  if (a.kind === 'gif')     return '🎞 GIF';
+  if (a.kind === 'file')    return `📎 ${a.title || 'Файл'}`;
+  if (a.kind === 'link')    return `🔗 ${a.title || a.url || 'Ссылка'}`;
+  if (a.kind === 'poll')    return `📊 Опрос`;
+  return '';
+}
+
 function normalizeVkMessage(m, profiles = [], groups = []) {
   const att = extractVkAttachments(m.attachments);
   const fwds = extractVkForwarded(m.fwd_messages, profiles, groups);
   let reply_to_text = null, reply_to_author = null;
   if (m.reply_message) {
-    reply_to_text = m.reply_message.text?.slice(0, 200) || '';
+    const rText = (m.reply_message.text || '').slice(0, 200);
+    const rMedia = describeVkMedia(m.reply_message.attachments);
+    reply_to_text = rText || rMedia || '';
     const fromId = m.reply_message.from_id;
     if (fromId > 0) {
       const p = profiles.find(p => p.id === fromId);

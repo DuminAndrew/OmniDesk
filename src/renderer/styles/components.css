@@ -360,8 +360,11 @@ select option { background: var(--bg-elevated); color: var(--text-primary); }
 .bubble.out .bubble-fwd__head { color: rgba(255,255,255,.85); }
 .bubble-fwd__body { white-space: pre-wrap; user-select: text; color: var(--text-primary); }
 .bubble.out .bubble-fwd__body { color: white; }
-.bubble-fwd .media-photo { max-width: 200px; max-height: 200px; }
-.bubble-fwd .media-voice { min-width: 200px; }
+.bubble-fwd .media-photo { max-width: 220px; max-height: 220px; }
+.bubble-fwd .media-voice { min-width: 200px; max-width: 280px; }
+.bubble-fwd .media-video { max-width: 240px; min-width: 180px; padding: 12px; }
+.bubble-fwd .media-video.is-round { width: 160px; height: 160px; padding: 0; }
+.bubble-fwd .media-file { min-width: 200px; max-width: 280px; }
 .bento-hero__name {
   font-size: 22px;
   font-weight: 700;
@@ -398,9 +401,35 @@ select option { background: var(--bg-elevated); color: var(--text-primary); }
 /* ───── Thread head / bubbles ────────────────────────────────────── */
 .thread-empty__icon { font-size: 56px; opacity: .35; }
 
-.bubble-group { display: flex; flex-direction: column; gap: 4px; max-width: 70%; }
+.bubble-group {
+  display: flex; flex-direction: column; gap: 4px;
+  max-width: min(480px, 75%);
+  min-width: 0;
+}
 .bubble-group.in  { align-self: flex-start; }
 .bubble-group.out { align-self: flex-end; align-items: flex-end; }
+.bubble {
+  max-width: 100%;
+  min-width: 0;
+}
+.bubble-fwd {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.bubble-fwd > * {
+  max-width: 100%;
+}
+.media-voice {
+  max-width: 100%;
+}
+.media-voice__transcript {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.media-voice__bar {
+  width: 120px;        /* slightly slimmer waveform so the player stays compact */
+  flex-shrink: 1;
+}
 
 .bubble {
   padding: 9px 14px;
@@ -596,11 +625,13 @@ select option { background: var(--bg-elevated); color: var(--text-primary); }
   margin-bottom: 4px;
 }
 .media-voice__transcript-label {
+  display: inline-block;
   font-size: 10.5px;
   text-transform: uppercase;
   letter-spacing: .07em;
   color: var(--text-muted);
   font-weight: 600;
+  line-height: 1.2;
 }
 .bubble.out .media-voice__transcript-label { color: rgba(255,255,255,.7); }
 .media-voice__transcript-toggle {
@@ -616,12 +647,14 @@ select option { background: var(--bg-elevated); color: var(--text-primary); }
 .media-voice__transcript-toggle:hover { background: rgba(255,255,255,.06); color: var(--text-primary); }
 .bubble.out .media-voice__transcript-toggle { color: rgba(255,255,255,.7); }
 .media-voice__transcript-body {
+  display: block;
+  margin-top: 6px;
   white-space: pre-wrap;
   overflow: hidden;
   max-height: 600px;
   transition: max-height .25s var(--ease);
 }
-.media-voice__transcript-body.is-collapsed { max-height: 0; }
+.media-voice__transcript-body.is-collapsed { max-height: 0; margin-top: 0; }
 
 /* Whisper progress bar */
 .whisper-progress {
