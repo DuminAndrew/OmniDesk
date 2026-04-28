@@ -41,8 +41,36 @@ export async function renderInbox(host, { injectIcons }) {
 
   $('[data-action="send"]', view).addEventListener('click', () => sendMessage(view));
   $('[data-action="attach"]', view).addEventListener('click', () => attachFile(view));
-  $('[data-bind="composer"]', view).addEventListener('keydown', (e) => {
+
+  const composer = $('[data-bind="composer"]', view);
+  composer.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) sendMessage(view);
+  });
+  composer.addEventListener('paste', async (e) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (const item of items) {
+      if (item.kind === 'file' && item.type.startsWith('image/')) {
+        e.preventDefault();
+        const blob = item.getAsFile();
+        if (!blob) continue;
+        const ext = (item.type.split('/')[1] || 'png').toLowerCase();
+        const buffer = await blob.arrayBuffer();
+        try {
+          const r = await api.inbox.savePastedImage({ buffer, ext });
+          if (r.ok && r.data) {
+            pendingAttach = r.data;
+            showAttachChip(view, pendingAttach);
+            toast('Картинка из буфера готова к отправке', 'success', 1500);
+          } else {
+            toast('Не удалось вставить: ' + (r.error || 'unknown'), 'error');
+          }
+        } catch (err) {
+          toast('Не удалось вставить: ' + err.message, 'error');
+        }
+        return;
+      }
+    }
   });
 
   api.on('inbox:newMessage', async () => {
@@ -190,7 +218,6 @@ async function refreshThreadMessages(view, chatOrId) {
     ? chatOrId
     : chatsCache.find(c => c.id === chatId);
   if (!chat) {
-    // Defensive: pull fresh list ignoring filter
     const r = await api.chats.list({});
     chat = (r.data || []).find(c => c.id === chatId);
   }
@@ -212,6 +239,41 @@ async function refreshThreadMessages(view, chatOrId) {
     box.appendChild(renderBubble(m, chat));
   }
   box.scrollTop = box.scrollHeight;
+
+  // Auto-download TG media if user enabled it in Settings
+  if (chat.source === 'tg' && localStorage.getItem('omnidesk:autoMedia') === '1') {
+    autoDownloadTgMedia(box, chat, msgs);
+  }
+}
+
+const autoDownloaded = new Set();
+async function autoDownloadTgMedia(box, chat, msgs) {
+  for (const m of msgs) {
+    if (!Array.isArray(m.attachments) || !m.external_id) continue;
+    for (const a of m.attachments) {
+      if (!a.tgRef) continue;
+      const key = `${chat.id}-${m.external_id}-${a.kind}`;
+      if (autoDownloaded.has(key)) continue;
+      autoDownloaded.add(key);
+      // Only auto-fetch lightweight media (photos + voice). Videos / files
+      // stay click-to-load to avoid eating bandwidth on huge attachments.
+      if (a.kind === 'photo') {
+        api.media.download({ source: 'tg', externalChatId: chat.external_id, msgId: m.external_id, kind: 'photo', ext: 'jpg' })
+          .then(r => {
+            if (!r?.ok || !r.data) return;
+            const placeholder = box.querySelector(`[data-msg-id="${m.id}"] .media-video`);
+            if (placeholder) {
+              const wrap = placeholder.parentElement;
+              wrap.innerHTML = `<img class="media-photo" src="${r.data}" alt=""/>`;
+              wrap.querySelector('img').addEventListener('click', () => openLightbox(r.data));
+            }
+          }).catch(() => {});
+      } else if (a.kind === 'voice') {
+        api.media.download({ source: 'tg', externalChatId: chat.external_id, msgId: m.external_id, kind: 'voice', ext: 'ogg' })
+          .catch(() => {});
+      }
+    }
+  }
 }
 
 const URL_REGEX = /(https?:\/\/[^\s<>"']+)/gi;
@@ -745,12 +807,7 @@ function encodeWav(pcm, sampleRate) {
 
 let pendingAttach = null;
 
-async function attachFile(view) {
-  if (!activeChatId) { toast('Сначала откройте чат', 'error'); return; }
-  const r = await api.inbox.pickFile();
-  if (!r?.ok || !r.data) return;
-  pendingAttach = r.data;
-  // Show preview chip above composer
+function showAttachChip(view, file) {
   const composerWrap = $('.thread__composer', view);
   let preview = composerWrap.querySelector('.compose-attach-preview');
   if (!preview) {
@@ -760,14 +817,22 @@ async function attachFile(view) {
   }
   preview.innerHTML = `
     ${icon('paperclip', 14)}
-    <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(pendingAttach.name)}</span>
-    <span class="muted small">${humanSize(pendingAttach.size)}</span>
+    <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(file.name)}</span>
+    <span class="muted small">${humanSize(file.size)}</span>
     <button data-cancel-attach>${icon('x', 12)}</button>
   `;
   preview.querySelector('[data-cancel-attach]').addEventListener('click', () => {
     pendingAttach = null;
     preview.remove();
   });
+}
+
+async function attachFile(view) {
+  if (!activeChatId) { toast('Сначала откройте чат', 'error'); return; }
+  const r = await api.inbox.pickFile();
+  if (!r?.ok || !r.data) return;
+  pendingAttach = r.data;
+  showAttachChip(view, pendingAttach);
 }
 
 async function sendMessage(view) {

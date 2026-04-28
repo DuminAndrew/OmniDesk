@@ -35,6 +35,16 @@ export async function renderSettings(host, { injectIcons }) {
     if (r.ok) { toast('VK отключён', 'success'); refresh(); }
   });
 
+  // Auto-download media toggle
+  const autoToggle = bind(view, 'autoload-toggle');
+  if (autoToggle) {
+    autoToggle.checked = localStorage.getItem('omnidesk:autoMedia') === '1';
+    autoToggle.addEventListener('change', () => {
+      localStorage.setItem('omnidesk:autoMedia', autoToggle.checked ? '1' : '0');
+      toast(autoToggle.checked ? 'Автозагрузка включена' : 'Автозагрузка выключена', 'success', 1800);
+    });
+  }
+
   // Whisper install + status
   const refreshWhisper = async () => {
     const s = (await api.whisper.status()).data || {};

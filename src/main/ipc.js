@@ -112,6 +112,16 @@ function register({ onWebContentsSend, mainWindow }) {
     return msg;
   }));
 
+  ipcMain.handle('inbox:savePastedImage', safe(async ({ buffer, ext }) => {
+    const fs = require('fs');
+    const paths = require('./utils/paths');
+    const safeExt = (ext || 'png').replace(/[^a-z0-9]/gi, '').slice(0, 5) || 'png';
+    const fileName = `paste-${Date.now()}.${safeExt}`;
+    const filePath = path.join(paths.mediaDir(), fileName);
+    fs.writeFileSync(filePath, Buffer.from(buffer));
+    return { path: filePath, name: fileName, size: buffer.byteLength || Buffer.byteLength(buffer) };
+  }));
+
   ipcMain.handle('inbox:pickFile', safe(async () => {
     const r = await dialog.showOpenDialog({
       properties: ['openFile'],

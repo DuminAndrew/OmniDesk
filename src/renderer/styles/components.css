@@ -1126,6 +1126,33 @@ select option { background: var(--bg-elevated); color: var(--text-primary); }
 .empty-state__icon { font-size: 36px; opacity: .35; margin-bottom: 6px; }
 .empty-state__title { color: var(--text-primary); font-weight: 600; font-size: 14px; }
 
+/* ───── Toggle switch ────────────────────────────────────────────── */
+.toggle {
+  display: inline-flex; align-items: center; gap: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+.toggle input { display: none; }
+.toggle__track {
+  position: relative;
+  width: 44px; height: 24px;
+  background: var(--bg-base-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-pill);
+  transition: background var(--t), border-color var(--t);
+}
+.toggle__thumb {
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 18px; height: 18px;
+  background: var(--text-muted);
+  border-radius: 50%;
+  transition: transform var(--t), background var(--t);
+}
+.toggle input:checked + .toggle__track { background: var(--grad-tg); border-color: transparent; }
+.toggle input:checked + .toggle__track .toggle__thumb { transform: translateX(20px); background: white; }
+.toggle__label { font-size: 13px; color: var(--text-secondary); }
+
 /* ───── Wallpaper system ─────────────────────────────────────────── */
 .thread__messages {
   background: var(--chat-bg, transparent);

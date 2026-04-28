@@ -36,9 +36,10 @@ contextBridge.exposeInMainWorld('omnidesk', {
 
   // ── Unified inbox ─────────────────────────────────────────────
   inbox: {
-    sendMessage: (data) => invoke('inbox:sendMessage', data),
-    pickFile:    () => invoke('inbox:pickFile'),
-    sendFile:    (data) => invoke('inbox:sendFile', data)
+    sendMessage:      (data) => invoke('inbox:sendMessage', data),
+    pickFile:         () => invoke('inbox:pickFile'),
+    sendFile:         (data) => invoke('inbox:sendFile', data),
+    savePastedImage:  (data) => invoke('inbox:savePastedImage', data)
   },
 
   // ── Chats / messages ──────────────────────────────────────────
