@@ -26,6 +26,7 @@ const ICONS = {
   more: `<circle cx="5" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="19" cy="12" r="1.5" fill="currentColor"/>`,
   play: `<path d="M8 5v14l11-7z" fill="currentColor"/>`,
   pause: `<path d="M6 5h4v14H6zM14 5h4v14h-4z" fill="currentColor"/>`,
+  download: `<path ${STROKE} d="M12 4v12m0 0l-4-4m4 4l4-4M5 21h14"/>`,
   x: `<path ${STROKE} d="M6 6l12 12M18 6L6 18"/>`,
   globe: `<circle cx="12" cy="12" r="9" ${STROKE}/><path ${STROKE} d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>`,
   shield: `<path ${STROKE} d="M12 3l8 3v6c0 5-3.5 8.5-8 9-4.5-.5-8-4-8-9V6l8-3Z"/><path ${STROKE} d="M9 12l2 2 4-4"/>`,

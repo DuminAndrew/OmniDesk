@@ -55,7 +55,8 @@ contextBridge.exposeInMainWorld('omnidesk', {
   },
 
   media: {
-    download: (data) => invoke('media:download', data)
+    download: (data) => invoke('media:download', data),
+    saveAs:   (data) => invoke('media:saveAs', data)
   },
 
   // ── CRM ───────────────────────────────────────────────────────

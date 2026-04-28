@@ -714,7 +714,23 @@ select option { background: var(--bg-elevated); color: var(--text-primary); }
   border-radius: var(--r-md);
   min-width: 240px;
   cursor: pointer;
+  transition: background var(--t-fast);
 }
+.media-file:hover { background: rgba(0,0,0,.28); }
+.media-file.is-loading .media-file__icon { animation: pulse 1.2s infinite; }
+.media-file__download {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.06);
+  border: 0;
+  color: var(--text-secondary);
+  display: grid; place-content: center;
+  cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+.media-file__download:hover { background: rgba(0,198,255,.18); color: var(--tg-1); }
+.bubble.out .media-file__download { background: rgba(255,255,255,.18); color: white; }
+.bubble.out .media-file__download:hover { background: rgba(255,255,255,.3); }
 .bubble.out .media-file { background: rgba(255,255,255,.16); }
 .media-file__icon {
   width: 40px; height: 40px;

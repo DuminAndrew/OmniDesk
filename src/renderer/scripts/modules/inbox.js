@@ -426,17 +426,41 @@ function renderAttachment(a, chat, msg) {
       return div;
     }
     case 'file': {
+      const fileName = a.title || ('file.' + (a.ext || 'bin'));
       div.innerHTML = `
         <div class="media-file">
           <div class="media-file__icon">${icon('paperclip', 20)}</div>
           <div style="min-width:0">
-            <div class="media-file__name">${escapeHtml(a.title || 'Файл')}</div>
+            <div class="media-file__name">${escapeHtml(fileName)}</div>
             <div class="media-file__size">${a.size ? humanSize(a.size) : (a.ext || '')}</div>
           </div>
+          <button class="media-file__download" data-download title="Скачать">${icon('download', 16)}</button>
         </div>`;
-      div.querySelector('.media-file').addEventListener('click', () => {
-        if (a.url) window.omnidesk.openExternal(a.url);
-      });
+      const fileEl = div.querySelector('.media-file');
+      const downloadFile = async (e) => {
+        e?.stopPropagation();
+        try {
+          fileEl.classList.add('is-loading');
+          toast('Сохранение…', 'info', 1500);
+          const ext = a.ext || (fileName.split('.').pop() || 'bin');
+          const r = await api.media.saveAs({
+            source: chat.source,
+            externalChatId: chat.external_id,
+            msgId: msg.external_id,
+            kind: 'file',
+            ext,
+            name: fileName,
+            url: a.url || null
+          });
+          if (r.ok && r.data) toast('Сохранено: ' + r.data, 'success', 4000);
+        } catch (err) {
+          toast('Не удалось скачать: ' + err.message, 'error');
+        } finally {
+          fileEl.classList.remove('is-loading');
+        }
+      };
+      div.querySelector('[data-download]').addEventListener('click', downloadFile);
+      fileEl.addEventListener('click', downloadFile);
       return div;
     }
     case 'link': {

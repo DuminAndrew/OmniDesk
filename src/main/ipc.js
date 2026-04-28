@@ -170,6 +170,58 @@ function register({ onWebContentsSend, mainWindow }) {
     if (source !== 'tg') throw new Error('Only TG media download is implemented');
     return tg.downloadMedia({ externalChatId, msgId, kind, ext: ext || 'bin' });
   }));
+
+  ipcMain.handle('media:saveAs', safe(async ({ source, externalChatId, msgId, kind, ext, name, url }) => {
+    const fs = require('fs');
+    const paths = require('./utils/paths');
+    let localPath;
+
+    if (source === 'tg') {
+      // Cached or downloads on demand; returns omnidesk:// URL
+      const omniUrl = await tg.downloadMedia({ externalChatId, msgId, kind, ext: ext || 'bin' });
+      const u = new URL(omniUrl);
+      const sub = u.hostname;
+      const file = decodeURIComponent(u.pathname.replace(/^\//, ''));
+      const dir = sub === 'media' ? paths.mediaDir()
+                : sub === 'voice' ? paths.voiceDir()
+                : paths.avatarsDir();
+      localPath = path.join(dir, file);
+    } else if (url) {
+      // Direct-URL file (VK doc/photo): download with shell.openExternal
+      // would open in browser; here we fetch ourselves to a tmp file
+      const fetchToTmp = (downloadUrl) => new Promise((resolve, reject) => {
+        const https = require('https');
+        const http = require('http');
+        const lib = downloadUrl.startsWith('https://') ? https : http;
+        const tmpPath = path.join(paths.mediaDir(), `dl-${Date.now()}.bin`);
+        const stream = fs.createWriteStream(tmpPath);
+        const get = (u) => lib.get(u, (res) => {
+          if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+            return get(res.headers.location);
+          }
+          if (res.statusCode !== 200) {
+            stream.destroy(); fs.unlinkSync(tmpPath);
+            return reject(new Error('HTTP ' + res.statusCode));
+          }
+          res.pipe(stream);
+          stream.on('finish', () => { stream.close(() => resolve(tmpPath)); });
+          stream.on('error', reject);
+        }).on('error', reject);
+        get(downloadUrl);
+      });
+      localPath = await fetchToTmp(url);
+    } else {
+      throw new Error('No source / url provided');
+    }
+
+    const dlg = await dialog.showSaveDialog({
+      defaultPath: name || path.basename(localPath),
+      title: 'Сохранить файл'
+    });
+    if (dlg.canceled) return null;
+    fs.copyFileSync(localPath, dlg.filePath);
+    return dlg.filePath;
+  }));
   ipcMain.handle('messages:loadHistory', safe(async ({ chatId, limit = 100 }) => {
     const chat = chatsRepo.get(chatId);
     if (!chat) throw new Error('Chat not found');
