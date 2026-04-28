@@ -40,7 +40,7 @@ win:
       arch:
         - x64
   icon: build/icon.ico
-  artifactName: "OmniDesk Setup ${version}.${ext}"
+  artifactName: "OmniDesk-Setup-${version}.${ext}"   # MUST match latest.yml URL (dashes, no spaces)
   publisherName: OmniDesk
 
 nsis:
