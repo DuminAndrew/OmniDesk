@@ -219,21 +219,22 @@ class TelegramService extends EventEmitter {
       if (!avatarUrl && d.entity) {
         this._ensureAvatar(d.entity, externalId).catch(() => {});
       }
-      // Build proper full name for users (TG dialog.title often = firstName only)
-      let title = d.title;
-      if (d.entity) {
+      // GramJS already computes a proper title for us. Only fall back to
+      // entity if title is missing entirely AND the entity actually belongs
+      // to this dialog (entity.id === d.id) — otherwise we risk grabbing
+      // the wrong cached user (e.g. self / a bot) and mis-labeling chats.
+      let title = d.title || d.name || '';
+      if (!title.trim() && d.entity && String(d.entity.id) === String(d.id)) {
         const e = d.entity;
-        const cls = e.className || '';
-        if (cls === 'User' || cls.includes('User')) {
-          const full = [e.firstName, e.lastName].filter(Boolean).join(' ').trim();
-          if (full) title = full;
-          else if (e.username) title = '@' + e.username;
-          else title = title || 'Без имени';
-        }
+        const full = [e.firstName, e.lastName].filter(Boolean).join(' ').trim();
+        if (full) title = full;
+        else if (e.username) title = '@' + e.username;
+        else if (e.title)    title = e.title;
       }
+      if (!title.trim()) title = 'Telegram';
       out.push({
         externalId,
-        title: title || d.name || 'Telegram',
+        title,
         avatarUrl,
         lastMessage: d.message ? composeTgBody(d.message) : '',
         lastTs: d.message ? (d.message.date * 1000) : null,
